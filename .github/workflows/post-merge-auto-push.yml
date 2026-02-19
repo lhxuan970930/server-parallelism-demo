@@ -1,0 +1,52 @@
+name: Post-merge auto update
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+
+concurrency:
+  group: post-merge-auto-update-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  post_merge_update:
+    # Prevent infinite loops when this workflow pushes a commit.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Run post-merge tasks
+        run: npm run postmerge
+
+      - name: Commit & push changes (if any)
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "chore: post-merge auto update [skip ci]"
+          git push
