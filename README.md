@@ -14,6 +14,18 @@ npm run dev
 # 打開 http://localhost:3000
 ```
 
+## ✅ 本機 QA（可選）
+
+我另外提供了一個一鍵 QA 腳本：
+
+```bash
+npm run qa
+```
+
+- 預設會用 `QA_PORT=3100` 啟動伺服器並做基本檢查
+- 會輸出 `QA_RESULTS.md`
+- 手動版流程請看 `QA_RUNBOOK.md`
+
 ## 圖片放置方式（你上傳到 GitHub 的檔案）
 
 伺服器會自動掃描 `./assets` 產生 `/api/wardrobe`，前端會自動載入。

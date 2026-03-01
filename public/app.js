@@ -4,15 +4,15 @@ const DEFAULT_WARDROBE = {
     back: "",
   },
   items: [
-    { id: "acc_headwear_beanie", name: "Beanie", category: "accessories", subcategory: "headwear" },
-    { id: "acc_earrings_studs", name: "Stud Earrings", category: "accessories", subcategory: "earrings" },
-    { id: "acc_necklace_chain", name: "Chain Necklace", category: "accessories", subcategory: "necklace" },
-    { id: "top_tee", name: "T-Shirt", category: "top" },
-    { id: "top_hoodie", name: "Hoodie", category: "top" },
-    { id: "bottom_jeans", name: "Jeans", category: "bottom" },
-    { id: "bottom_skirt", name: "Skirt", category: "bottom" },
-    { id: "socks_ankle", name: "Ankle Socks", category: "socks" },
-    { id: "shoes_sneakers", name: "Sneakers", category: "shoes" },
+    { id: "acc_headwear_beanie", name: "毛帽", category: "accessories", subcategory: "headwear" },
+    { id: "acc_earrings_studs", name: "耳釘", category: "accessories", subcategory: "earrings" },
+    { id: "acc_necklace_chain", name: "鍊條項鍊", category: "accessories", subcategory: "necklace" },
+    { id: "top_tee", name: "T 恤", category: "top" },
+    { id: "top_hoodie", name: "連帽上衣", category: "top" },
+    { id: "bottom_jeans", name: "牛仔褲", category: "bottom" },
+    { id: "bottom_skirt", name: "裙子", category: "bottom" },
+    { id: "socks_ankle", name: "短襪", category: "socks" },
+    { id: "shoes_sneakers", name: "運動鞋", category: "shoes" },
   ],
 };
 
@@ -341,13 +341,27 @@ function renderItems() {
   noneCard.type = "button";
   noneCard.className = "item-card" + (!equippedId ? " is-selected" : "");
   noneCard.dataset.none = "true";
-  noneCard.innerHTML = `
-    <div class="item-thumb"><div class="item-thumb__fallback">無</div></div>
-    <div>
-      <div class="item-name">無</div>
-      <div class="item-meta">從 ${labelForSlot(slotKey)} 移除</div>
-    </div>
-  `;
+
+  const noneThumb = document.createElement("div");
+  noneThumb.className = "item-thumb";
+  const noneThumbText = document.createElement("div");
+  noneThumbText.className = "item-thumb__fallback";
+  noneThumbText.textContent = "無";
+  noneThumb.appendChild(noneThumbText);
+
+  const noneText = document.createElement("div");
+  const noneName = document.createElement("div");
+  noneName.className = "item-name";
+  noneName.textContent = "無";
+  const noneMeta = document.createElement("div");
+  noneMeta.className = "item-meta";
+  noneMeta.textContent = `從 ${labelForSlot(slotKey)} 移除`;
+  noneText.appendChild(noneName);
+  noneText.appendChild(noneMeta);
+
+  noneCard.appendChild(noneThumb);
+  noneCard.appendChild(noneText);
+
   noneCard.addEventListener("click", () => equipItem(slotKey, null));
   grid.appendChild(noneCard);
 
@@ -363,13 +377,27 @@ function renderItems() {
     const empty = document.createElement("div");
     empty.className = "item-card";
     empty.style.cursor = "default";
-    empty.innerHTML = `
-      <div class="item-thumb"><div class="item-thumb__fallback">空</div></div>
-      <div>
-        <div class="item-name">這個分類目前沒有物件</div>
-        <div class="item-meta">把 PNG 放到 assets/wardrobe 後，重新整理頁面即可看到</div>
-      </div>
-    `;
+
+    const emptyThumb = document.createElement("div");
+    emptyThumb.className = "item-thumb";
+    const emptyThumbText = document.createElement("div");
+    emptyThumbText.className = "item-thumb__fallback";
+    emptyThumbText.textContent = "空";
+    emptyThumb.appendChild(emptyThumbText);
+
+    const emptyText = document.createElement("div");
+    const emptyName = document.createElement("div");
+    emptyName.className = "item-name";
+    emptyName.textContent = "這個分類目前沒有物件";
+    const emptyMeta = document.createElement("div");
+    emptyMeta.className = "item-meta";
+    emptyMeta.textContent = "把 PNG 放到 assets/wardrobe 後，重新整理頁面即可看到";
+    emptyText.appendChild(emptyName);
+    emptyText.appendChild(emptyMeta);
+
+    empty.appendChild(emptyThumb);
+    empty.appendChild(emptyText);
+
     grid.appendChild(empty);
     return;
   }
@@ -386,7 +414,8 @@ function renderItems() {
     name.textContent = item.name;
     const meta = document.createElement("div");
     meta.className = "item-meta";
-    meta.textContent = item.images.back ? "正面＋背面" : item.images.front ? "只有正面" : "沒有圖片";
+    const hasDistinctBack = !!(item.images.back && item.images.front && item.images.back !== item.images.front);
+    meta.textContent = hasDistinctBack ? "正面＋背面" : item.images.front ? "只有正面" : "沒有圖片";
     text.appendChild(name);
     text.appendChild(meta);
 
@@ -415,6 +444,7 @@ function renderEquippedPanel() {
     remove.type = "button";
     remove.className = "remove-button";
     remove.textContent = "移除";
+    remove.setAttribute("aria-label", `從 ${slot.label} 移除`);
 
     const equippedId = state.equipped.get(slot.key);
     remove.disabled = !equippedId;

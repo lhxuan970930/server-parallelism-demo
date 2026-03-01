@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
+    "qa": "node scripts/qa-local.js",
     "test": "echo \"No tests\" && exit 0"
   },
   "keywords": ["dress-up", "game", "express"],

@@ -16,13 +16,18 @@ app.use(express.static(PUBLIC_DIR));
 // PNG assets (model + wardrobe)
 app.use('/assets', express.static(ASSETS_DIR));
 
+// Keep missing /assets paths as a simple 404 (avoid HTML bodies so QA can distinguish from SPA fallback).
+app.use('/assets', (req, res) => {
+  res.status(404).type('text/plain').send('Not found');
+});
+
 function isPng(filename) {
   return typeof filename === 'string' && filename.toLowerCase().endsWith('.png');
 }
 
 function toAssetUrl(relativePathFromAssets) {
   const segs = String(relativePathFromAssets)
-    .split(path.sep)
+    .split(/[\\/]/)
     .filter(Boolean)
     .map((s) => encodeURIComponent(s));
 
@@ -212,6 +217,11 @@ app.get('/api/wardrobe', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to build wardrobe manifest.' });
   }
+});
+
+// Keep missing /api routes as JSON 404 (avoid HTML bodies so QA can distinguish from SPA fallback).
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
 });
 
 // SPA fallback (keeps deep links working).
