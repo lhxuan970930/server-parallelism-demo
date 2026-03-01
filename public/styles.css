@@ -124,7 +124,8 @@ body {
 .category-button:focus-visible,
 .subcategory-button:focus-visible,
 .item-card:focus-visible,
-.remove-button:focus-visible {
+.remove-button:focus-visible,
+.compare-toggle input:focus-visible {
   outline: 3px solid rgba(79, 70, 229, 0.35);
   outline-offset: 2px;
 }

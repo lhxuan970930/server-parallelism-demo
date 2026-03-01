@@ -22,8 +22,8 @@
       <section class="model-pane" aria-label="人物預覽">
         <div class="model-toolbar">
           <div class="view-toggle" role="tablist" aria-label="人物視角">
-            <button class="segmented-button is-active" type="button" data-view="front" role="tab" aria-selected="true">正面</button>
-            <button class="segmented-button" type="button" data-view="back" role="tab" aria-selected="false">背面</button>
+            <button id="viewTabFront" class="segmented-button is-active" type="button" data-view="front" role="tab" aria-selected="true" aria-controls="viewPanelFront" tabindex="0">正面</button>
+            <button id="viewTabBack" class="segmented-button" type="button" data-view="back" role="tab" aria-selected="false" aria-controls="viewPanelBack" tabindex="-1">背面</button>
           </div>
 
           <label class="compare-toggle">
@@ -33,7 +33,7 @@
         </div>
 
         <div id="modelStage" class="model-stage" data-mode="single" data-active-view="front">
-          <div class="model-view" data-view="front" aria-label="正面">
+          <div id="viewPanelFront" class="model-view" data-view="front" aria-label="正面" role="tabpanel" aria-labelledby="viewTabFront">
             <div class="model-frame">
               <div class="model-placeholder" data-kind="base" aria-hidden="true">
                 <div class="model-placeholder__silhouette"></div>
@@ -44,7 +44,7 @@
             </div>
           </div>
 
-          <div class="model-view" data-view="back" aria-label="背面">
+          <div id="viewPanelBack" class="model-view" data-view="back" aria-label="背面" role="tabpanel" aria-labelledby="viewTabBack">
             <div class="model-frame">
               <div class="model-placeholder" data-kind="base" aria-hidden="true">
                 <div class="model-placeholder__silhouette"></div>

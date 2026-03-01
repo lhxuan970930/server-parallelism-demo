@@ -103,6 +103,15 @@ git commit -m "Initial commit"
 ```
 
 > 如果顯示 `nothing to commit` 代表沒有變更，這是正常的。
+>
+> 如果 `git commit` 失敗並要求你設定身分（`Please tell me who you are.`），請先執行（只要一次）：
+>
+> ```bat
+> git config --global user.name "你的名字"
+> git config --global user.email "you@example.com"
+> ```
+>
+> 然後再重跑一次 `git commit ...`。
 
 ### A-4) 在 GitHub 建立空 repo
 

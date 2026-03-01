@@ -52,6 +52,19 @@ const state = {
   compare: false,
 };
 
+function resolveAssetUrl(input) {
+  const trimmed = String(input ?? "").trim();
+  if (!trimmed) return "";
+
+  const lowered = trimmed.toLowerCase();
+  if (lowered.startsWith("javascript:") || lowered.startsWith("data:") || lowered.startsWith("vbscript:")) return "";
+
+  if (lowered.startsWith("http://") || lowered.startsWith("https://")) return trimmed;
+
+  const rel = trimmed.startsWith("/") ? trimmed.replace(/^\/+/, "") : trimmed;
+  return new URL(rel, document.baseURI).href;
+}
+
 function flattenCategories(categories) {
   const items = [];
 
@@ -189,13 +202,25 @@ function setStatus(text) {
 
 async function loadWardrobe() {
   try {
-    const res = await fetch("/api/wardrobe", { headers: { Accept: "application/json" } });
+    const apiUrl = resolveAssetUrl("/api/wardrobe");
+    const res = await fetch(apiUrl, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     setStatus("已載入衣櫃資料（/api/wardrobe）");
     return normalizeWardrobe(json);
   } catch (err) {
-    setStatus("無法讀取 /api/wardrobe，改用內建範例資料");
+    setStatus("無法讀取 /api/wardrobe，嘗試 wardrobe.json");
+  }
+
+  try {
+    const url = resolveAssetUrl("wardrobe.json");
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    setStatus("已載入衣櫃資料（wardrobe.json）");
+    return normalizeWardrobe(json);
+  } catch (err) {
+    setStatus("無法讀取 wardrobe.json，改用內建範例資料");
     return normalizeWardrobe(DEFAULT_WARDROBE);
   }
 }
@@ -304,7 +329,7 @@ function createThumb(item) {
   const thumb = document.createElement("div");
   thumb.className = "item-thumb";
 
-  const src = item.thumbnail;
+  const src = resolveAssetUrl(item.thumbnail);
   if (src) {
     const img = document.createElement("img");
     img.alt = "";
@@ -473,7 +498,8 @@ function applyBaseImage(frameEl, view, src) {
   const img = frameEl.querySelector(".model-base");
   const placeholder = frameEl.querySelector('.model-placeholder[data-kind="base"]');
 
-  if (!src) {
+  const resolved = resolveAssetUrl(src);
+  if (!resolved) {
     img.removeAttribute("src");
     img.style.display = "none";
     placeholder.style.display = "grid";
@@ -482,7 +508,7 @@ function applyBaseImage(frameEl, view, src) {
   }
 
   img.style.display = "block";
-  img.src = src;
+  img.src = resolved;
   placeholder.style.display = "none";
 
   img.addEventListener(
@@ -524,11 +550,12 @@ function renderModel() {
 
     equippedItems.forEach(({ slotKey, item, z }) => {
       const src = getItemImageForView(item, view);
-      if (!src) return;
+      const resolvedSrc = resolveAssetUrl(src);
+      if (!resolvedSrc) return;
 
       const img = document.createElement("img");
       img.alt = "";
-      img.src = src;
+      img.src = resolvedSrc;
       img.style.zIndex = String(z);
       img.dataset.slot = slotKey;
 
@@ -548,6 +575,7 @@ function setActiveView(view) {
     const isActive = btn.dataset.view === view;
     btn.classList.toggle("is-active", isActive);
     btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    btn.tabIndex = isActive ? 0 : -1;
   });
 
   renderModel();
@@ -557,6 +585,25 @@ function initViewControls() {
   document.querySelectorAll(".segmented-button").forEach((btn) => {
     btn.addEventListener("click", () => setActiveView(btn.dataset.view));
   });
+
+  // Keyboard support for the tablist (ArrowLeft/ArrowRight)
+  const tablist = document.querySelector(".view-toggle");
+  if (tablist) {
+    tablist.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+
+      const tabs = Array.from(tablist.querySelectorAll('.segmented-button[role="tab"]'));
+      const currentIndex = tabs.findIndex((t) => t.getAttribute("aria-selected") === "true");
+      if (currentIndex === -1) return;
+
+      e.preventDefault();
+      const delta = e.key === "ArrowRight" ? 1 : -1;
+      const next = tabs[(currentIndex + delta + tabs.length) % tabs.length];
+
+      setActiveView(next.dataset.view);
+      next.focus();
+    });
+  }
 
   const compareToggle = document.getElementById("compareToggle");
   compareToggle.addEventListener("change", () => {

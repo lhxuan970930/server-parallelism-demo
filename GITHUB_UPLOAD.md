@@ -113,6 +113,32 @@ fi
 git push -u origin main
 ```
 
+## 常見錯誤：`git commit` 失敗（Please tell me who you are）
+
+當你在執行 `git commit` 時看到類似訊息：
+
+```
+Author identity unknown
+
+*** Please tell me who you are.
+```
+
+代表 Git 尚未設定你的提交身分。請執行（只要一次）：
+
+```bash
+git config --global user.name "你的名字"
+git config --global user.email "you@example.com"
+```
+
+可用下列指令確認是否已生效：
+
+```bash
+git config --global --get user.name
+git config --global --get user.email
+```
+
+設定完成後，回到原本的流程重新執行 `git commit ...` 即可。
+
 ## 方法 A：用 git 指令推送（推薦，能保留空資料夾結構/ .gitkeep）
 
 1) 在 GitHub 建立一個空 repo（不要勾 README/License）。

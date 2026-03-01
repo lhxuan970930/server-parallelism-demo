@@ -13,6 +13,18 @@ app.use(express.json());
 // Frontend
 app.use(express.static(PUBLIC_DIR));
 
+// Optional static wardrobe manifest for static deployments.
+// - If public/wardrobe.json exists, express.static will serve it.
+// - If it does not exist, return a plain 404 (avoid SPA fallback HTML).
+app.get('/wardrobe.json', async (req, res) => {
+  const abs = path.join(PUBLIC_DIR, 'wardrobe.json');
+  if (await fileExists(abs)) {
+    res.sendFile(abs);
+    return;
+  }
+  res.status(404).type('text/plain').send('Not found');
+});
+
 // PNG assets (model + wardrobe)
 app.use('/assets', express.static(ASSETS_DIR));
 

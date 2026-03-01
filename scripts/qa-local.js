@@ -106,7 +106,26 @@ async function main() {
 
     const report = [];
 
-    // 1) /api/wardrobe
+    // 1) / should include critical assets (avoid breaking index.html)
+    {
+      const res = await request('/');
+      const body = res.body.toString('utf8');
+      const hasApp = body.includes('<script src="app.js"');
+      const hasCss = body.includes('<link rel="stylesheet" href="styles.css"');
+
+      report.push({
+        name: 'GET / includes <script src="app.js"> and <link rel="stylesheet" href="styles.css">',
+        ok: res.status === 200 && looksLikeHtml(res.body) && hasApp && hasCss,
+        detail: {
+          status: res.status,
+          hasApp,
+          hasCss,
+          bodyPreview: body.slice(0, 200),
+        },
+      });
+    }
+
+    // 2) /api/wardrobe
     {
       const res = await request('/api/wardrobe');
       const ct = formatHeaderValue(res.headers['content-type']);
@@ -141,7 +160,41 @@ async function main() {
       }
     }
 
-    // 2) /assets fetch sample PNG (if any)
+    // 3) /wardrobe.json (optional static fallback for static deployments)
+    {
+      const res = await request('/wardrobe.json');
+      if (res.status === 404) {
+        report.push({
+          name: '[SKIP/INFO] GET /wardrobe.json (optional static wardrobe fallback)',
+          ok: true,
+          detail: 'Not found (404). You can add public/wardrobe.json to serve it as a static fallback.',
+        });
+      } else {
+        const ct = formatHeaderValue(res.headers['content-type']);
+        let parsed = null;
+        let parseOk = false;
+        try {
+          parsed = JSON.parse(res.body.toString('utf8'));
+          parseOk = true;
+        } catch {
+          parseOk = false;
+        }
+
+        report.push({
+          name: 'GET /wardrobe.json returns JSON with baseModel/items (static fallback)',
+          ok: res.status === 200 && parseOk && !!parsed && typeof parsed === 'object' && !!parsed.baseModel && Array.isArray(parsed.items),
+          detail: {
+            status: res.status,
+            contentType: ct,
+            bodyPreview: res.body.toString('utf8', 0, 200),
+            baseModel: parsed && parsed.baseModel,
+            itemsCount: parsed && Array.isArray(parsed.items) ? parsed.items.length : null,
+          },
+        });
+      }
+    }
+
+    // 4) /assets fetch sample PNG (if any)
     {
       const abs = await findFirstPngUnderAssets();
       if (!abs) {
@@ -169,7 +222,7 @@ async function main() {
       }
     }
 
-    // 3) SPA fallback should not intercept /api
+    // 5) SPA fallback should not intercept /api
     {
       const res = await request('/api/__qa_missing');
       report.push({
@@ -179,7 +232,7 @@ async function main() {
       });
     }
 
-    // 4) SPA fallback should not intercept /assets
+    // 6) SPA fallback should not intercept /assets
     {
       const res = await request('/assets/__qa_missing.png');
       report.push({
@@ -189,7 +242,7 @@ async function main() {
       });
     }
 
-    // 5) SPA fallback should serve index.html for unknown routes
+    // 7) SPA fallback should serve index.html for unknown routes
     {
       const res = await request('/some/deep/link');
       const body = res.body.toString('utf8');

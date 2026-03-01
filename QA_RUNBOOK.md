@@ -36,7 +36,20 @@ curl -i http://localhost:3000/api/wardrobe
 - `Content-Type: application/json; charset=utf-8`
 - Body 是 JSON，包含：`baseModel` 與 `items`
 
-目前 repo 沒有放任何 PNG（`assets/` 只有資料夾），因此 `items` 會是空陣列，`baseModel.front/back` 也會是空字串。
+目前 repo 預設沒有放任何 PNG（`assets/` 只有資料夾），因此 `items` 會是空陣列，`baseModel.front/back` 也會是空字串。
+
+## 3.5)（可選）驗證靜態衣櫃清單 /wardrobe.json
+
+本專案也提供 `public/wardrobe.json` 作為「純靜態部署（例如 GitHub Pages）」的 fallback：
+
+```bash
+curl -i http://localhost:3000/wardrobe.json
+```
+
+預期：
+- `HTTP/1.1 200 OK`
+- `Content-Type: application/json`
+- Body 是 JSON，包含：`baseModel` 與 `items`
 
 ## 4) 驗證 /assets 靜態路徑可取到示例 png（若 repo 中有）
 
