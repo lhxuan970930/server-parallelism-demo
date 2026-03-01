@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>換裝遊戲</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="app-header__left">
+        <h1 class="app-title">換裝遊戲</h1>
+        <p class="app-subtitle">點選右側衣櫃的物件即可穿上；選 <strong>無</strong> 可移除。</p>
+      </div>
+      <div class="app-header__right">
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </div>
+    </header>
+
+    <main class="app">
+      <section class="model-pane" aria-label="人物預覽">
+        <div class="model-toolbar">
+          <div class="view-toggle" role="tablist" aria-label="人物視角">
+            <button class="segmented-button is-active" type="button" data-view="front" role="tab" aria-selected="true">正面</button>
+            <button class="segmented-button" type="button" data-view="back" role="tab" aria-selected="false">背面</button>
+          </div>
+
+          <label class="compare-toggle">
+            <input id="compareToggle" type="checkbox" />
+            同時顯示
+          </label>
+        </div>
+
+        <div id="modelStage" class="model-stage" data-mode="single" data-active-view="front">
+          <div class="model-view" data-view="front" aria-label="正面">
+            <div class="model-frame">
+              <div class="model-placeholder" data-kind="base" aria-hidden="true">
+                <div class="model-placeholder__silhouette"></div>
+                <div class="model-placeholder__text">尚未放入人物底圖（正面）</div>
+              </div>
+              <img class="model-base" alt="人物底圖 正面" />
+              <div class="model-overlays" aria-hidden="true"></div>
+            </div>
+          </div>
+
+          <div class="model-view" data-view="back" aria-label="背面">
+            <div class="model-frame">
+              <div class="model-placeholder" data-kind="base" aria-hidden="true">
+                <div class="model-placeholder__silhouette"></div>
+                <div class="model-placeholder__text">尚未放入人物底圖（背面）</div>
+              </div>
+              <img class="model-base" alt="人物底圖 背面" />
+              <div class="model-overlays" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="wardrobe-pane" aria-label="衣櫃">
+        <section class="equipped" aria-label="已穿戴">
+          <div class="section-title">已穿戴</div>
+          <div id="equippedPanel" class="equipped-list"></div>
+        </section>
+
+        <section class="wardrobe" aria-label="衣櫃物件">
+          <nav id="categoryNav" class="category-nav" aria-label="分類"></nav>
+
+          <div class="wardrobe-content">
+            <div id="subcategoryNav" class="subcategory-nav" aria-label="飾品分類"></div>
+            <div id="itemsGrid" class="items-grid" aria-label="物件"></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>
