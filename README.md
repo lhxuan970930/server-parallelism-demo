@@ -8,6 +8,8 @@
 
 ## 🚀 啟動
 
+> 需要 Node.js 18+（本專案使用 Express 5）。
+
 ```bash
 npm install
 npm run dev
@@ -25,6 +27,12 @@ npm run qa
 - 預設會用 `QA_PORT=3100` 啟動伺服器並做基本檢查
 - 會輸出 `QA_RESULTS.md`
 - 手動版流程請看 `QA_RUNBOOK.md`
+
+## 上傳到 GitHub
+
+請看 `GITHUB_UPLOAD.md`。
+
+若在 Windows 遇到 `fatal: not a git repository`，通常是沒有 `cd` 到專案根目錄（要看得到 `package.json` 那一層）或資料夾內尚未 `git init`；`GITHUB_UPLOAD.md` 已提供可直接複製貼上的修正步驟與自我驗證指令。
 
 ## 圖片放置方式（你上傳到 GitHub 的檔案）
 
