@@ -1,14 +1,16 @@
 {
-  "name": "api",
+  "name": "dress-up-game",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "echo \"No tests\" && exit 0"
   },
-  "keywords": [],
+  "keywords": ["dress-up", "game", "express"],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Simple dress-up game (model + wardrobe) served by Express.",
   "dependencies": {
     "express": "^5.1.0"
   }
