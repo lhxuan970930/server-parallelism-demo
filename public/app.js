@@ -131,6 +131,7 @@ function normalizeItem(item, idx) {
     images: { front, back },
     thumbnail,
     zIndex: Number.isFinite(obj.zIndex) ? obj.zIndex : Number.isFinite(obj.z) ? obj.z : null,
+    isPlaceholder: Boolean(obj.isPlaceholder),
   };
 }
 
@@ -304,6 +305,14 @@ function createThumb(item) {
   const thumb = document.createElement("div");
   thumb.className = "item-thumb";
 
+  if (item.isPlaceholder) {
+    const fallback = document.createElement("div");
+    fallback.className = "item-thumb__fallback";
+    fallback.textContent = "空白";
+    thumb.appendChild(fallback);
+    return thumb;
+  }
+
   const src = item.thumbnail;
   if (src) {
     const img = document.createElement("img");
@@ -377,7 +386,7 @@ function renderItems() {
   items.forEach((item) => {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "item-card" + (equippedId === item.id ? " is-selected" : "");
+    card.className = "item-card" + (equippedId === item.id ? " is-selected" : "") + (item.isPlaceholder ? " is-placeholder" : "");
     card.appendChild(createThumb(item));
 
     const text = document.createElement("div");
@@ -386,12 +395,24 @@ function renderItems() {
     name.textContent = item.name;
     const meta = document.createElement("div");
     meta.className = "item-meta";
-    meta.textContent = item.images.back ? "正面＋背面" : item.images.front ? "只有正面" : "沒有圖片";
+
+    if (item.isPlaceholder) {
+      meta.textContent = "尚未放圖片（點選不會顯示）";
+    } else {
+      meta.textContent = item.images.back ? "正面＋背面" : item.images.front ? "只有正面" : "沒有圖片";
+    }
+
     text.appendChild(name);
     text.appendChild(meta);
 
     card.appendChild(text);
-    card.addEventListener("click", () => equipItem(slotKey, item.id));
+
+    if (item.isPlaceholder) {
+      card.disabled = true;
+    } else {
+      card.addEventListener("click", () => equipItem(slotKey, item.id));
+    }
+
     grid.appendChild(card);
   });
 }
