@@ -1,18 +1,57 @@
 // 換裝遊戲前端（純 HTML/CSS/JS）
 // - 只支援正面（front）
-// - 只使用 window.WARDROBE_CONFIG（public/config.js）
+// - 純靜態版：素材清單內建於 app.js（不使用 config.js）
 
 (() => {
-  const CATEGORIES = ["首飾", "上衣", "下身裝扮", "鞋子", "襪子", "其他裝扮"];
+  // 內建素材清單（請把對應 PNG 放在 public/ 下的路徑）
+  const WARDROBE_DATA = {
+    baseModel: {
+      front: "./模特兒/model.png",
+    },
+    items: [
+      {
+        id: "accessory_necklace",
+        name: "項鍊",
+        category: "首飾",
+        front: "./裝扮/首飾/項鍊.png",
+      },
+      {
+        id: "top_sweater",
+        name: "毛衣",
+        category: "上衣",
+        front: "./裝扮/上衣/毛衣.png",
+      },
+      {
+        id: "bottom_skirt",
+        name: "裙子",
+        category: "下身裝扮",
+        front: "./裝扮/下身裝扮/裙子.png",
+      },
+      {
+        id: "shoes_sneakers",
+        name: "球鞋",
+        category: "鞋子",
+        front: "./裝扮/鞋子/球鞋.png",
+      },
+      {
+        id: "socks_long",
+        name: "長襪",
+        category: "襪子",
+        front: "./裝扮/襪子/長襪.png",
+      },
+    ],
+  };
+
+  const CATEGORIES = ["首飾", "上衣", "下身裝扮", "鞋子", "襪子"];
   const PAGE_SIZE = 5;
 
+  // 圖層：鞋子必須在襪子上面
   const CATEGORY_Z_INDEX = {
-    "襪子": 10,
-    "鞋子": 20,
-    "下身裝扮": 30,
-    "上衣": 40,
-    "其他裝扮": 50,
-    "首飾": 60,
+    首飾: 10,
+    上衣: 20,
+    下身裝扮: 30,
+    襪子: 40,
+    鞋子: 50,
   };
 
   const state = {
@@ -44,13 +83,14 @@
   }
 
   function ensureKnownCategory(category) {
-    return CATEGORIES.includes(category) ? category : "其他裝扮";
+    return CATEGORIES.includes(category) ? category : null;
   }
 
   function normalizeItem(raw, idx) {
     const obj = raw && typeof raw === "object" ? raw : {};
 
-    const category = ensureKnownCategory(String(obj.category || "其他裝扮").trim());
+    const category = ensureKnownCategory(String(obj.category || "").trim());
+    if (!category) return null;
 
     const front =
       obj.front ||
@@ -82,7 +122,7 @@
       baseModel: {
         front: base.front || base.frontImage || base.frontSrc || "",
       },
-      items: items.map((it, idx) => normalizeItem(it, idx)),
+      items: items.map((it, idx) => normalizeItem(it, idx)).filter(Boolean),
     };
   }
 
@@ -518,14 +558,8 @@
     initEquipped();
     initPagination();
 
-    const config = window.WARDROBE_CONFIG;
-    if (config && typeof config === "object") {
-      state.wardrobe = normalizeWardrobe(config);
-      setStatus("已載入衣櫃資料（config.js）");
-    } else {
-      state.wardrobe = { baseModel: { front: "" }, items: [] };
-      setStatus("尚未提供 config.js（請編輯 public/config.js）");
-    }
+    state.wardrobe = normalizeWardrobe(WARDROBE_DATA);
+    setStatus("已載入衣櫃資料");
 
     state.wardrobe.items = Array.isArray(state.wardrobe.items) ? state.wardrobe.items : [];
     rebuildIndex();
