@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>換裝遊戲</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
   </head>
   <body>
     <header class="app-header">
       <div class="app-header__left">
         <h1 class="app-title">換裝遊戲</h1>
-        <p class="app-subtitle">點選右側衣櫃的物件即可穿上；選 <strong>無</strong> 可移除。</p>
+        <p class="app-subtitle">左邊預覽人物；右邊衣櫃每個分類一次顯示 5 個槽位，點選即可穿上／再點一次可移除。</p>
       </div>
       <div class="app-header__right">
         <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -27,12 +27,12 @@
           </div>
 
           <label class="compare-toggle">
-            <input id="compareToggle" type="checkbox" />
+            <input id="compareToggle" type="checkbox" checked />
             同時顯示
           </label>
         </div>
 
-        <div id="modelStage" class="model-stage" data-mode="single" data-active-view="front">
+        <div id="modelStage" class="model-stage" data-mode="compare" data-active-view="front">
           <div class="model-view" data-view="front" aria-label="正面">
             <div class="model-frame">
               <div class="model-placeholder" data-kind="base" aria-hidden="true">
@@ -58,19 +58,12 @@
       </section>
 
       <aside class="wardrobe-pane" aria-label="衣櫃">
-        <section class="equipped" aria-label="已穿戴">
-          <div class="section-title">已穿戴</div>
-          <div id="equippedPanel" class="equipped-list"></div>
-        </section>
+        <div class="wardrobe-header">
+          <div class="section-title">衣櫃</div>
+          <div id="equippedChips" class="equipped-chips" aria-label="目前穿戴"></div>
+        </div>
 
-        <section class="wardrobe" aria-label="衣櫃物件">
-          <nav id="categoryNav" class="category-nav" aria-label="分類"></nav>
-
-          <div class="wardrobe-content">
-            <div id="subcategoryNav" class="subcategory-nav" aria-label="飾品分類"></div>
-            <div id="itemsGrid" class="items-grid" aria-label="物件"></div>
-          </div>
-        </section>
+        <div id="wardrobeShelves" class="wardrobe-shelves" aria-label="分類與槽位"></div>
       </aside>
     </main>
   </body>
