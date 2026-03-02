@@ -359,22 +359,28 @@ function renderItems() {
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  const DISPLAY_SLOTS = 5;
+
   if (!items.length) {
-    const empty = document.createElement("div");
-    empty.className = "item-card";
-    empty.style.cursor = "default";
-    empty.innerHTML = `
-      <div class="item-thumb"><div class="item-thumb__fallback">空</div></div>
-      <div>
-        <div class="item-name">這個分類目前沒有物件</div>
-        <div class="item-meta">把 PNG 放到 assets/wardrobe 後，重新整理頁面即可看到</div>
-      </div>
-    `;
-    grid.appendChild(empty);
+    for (let i = 0; i < DISPLAY_SLOTS; i += 1) {
+      const placeholder = document.createElement("button");
+      placeholder.type = "button";
+      placeholder.className = "item-card is-placeholder";
+      placeholder.dataset.empty = "true";
+      placeholder.innerHTML = `
+        <div class="item-thumb"><div class="item-thumb__fallback">空</div></div>
+        <div>
+          <div class="item-name">空白</div>
+          <div class="item-meta">尚未放入圖片</div>
+        </div>
+      `;
+      placeholder.addEventListener("click", () => setStatus("這個格子尚未放入圖片"));
+      grid.appendChild(placeholder);
+    }
     return;
   }
 
-  items.forEach((item) => {
+  items.slice(0, DISPLAY_SLOTS).forEach((item) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "item-card" + (equippedId === item.id ? " is-selected" : "");
@@ -394,6 +400,23 @@ function renderItems() {
     card.addEventListener("click", () => equipItem(slotKey, item.id));
     grid.appendChild(card);
   });
+
+  const remaining = Math.max(0, DISPLAY_SLOTS - Math.min(DISPLAY_SLOTS, items.length));
+  for (let i = 0; i < remaining; i += 1) {
+    const placeholder = document.createElement("button");
+    placeholder.type = "button";
+    placeholder.className = "item-card is-placeholder";
+    placeholder.dataset.empty = "true";
+    placeholder.innerHTML = `
+      <div class="item-thumb"><div class="item-thumb__fallback">空</div></div>
+      <div>
+        <div class="item-name">空白</div>
+        <div class="item-meta">尚未放入圖片</div>
+      </div>
+    `;
+    placeholder.addEventListener("click", () => setStatus("這個格子尚未放入圖片"));
+    grid.appendChild(placeholder);
+  }
 }
 
 function renderEquippedPanel() {

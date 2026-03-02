@@ -404,6 +404,11 @@ body {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
 }
 
+.item-card.is-placeholder {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .item-thumb {
   width: 100%;
   aspect-ratio: 1 / 1;
