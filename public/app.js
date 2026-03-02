@@ -1,9 +1,10 @@
 // 換裝遊戲前端（純 HTML/CSS/JS）
 // - 只支援正面（front）
-// - 不再 fetch wardrobe.json 或 /api/wardrobe，避免 file:// 限制
+// - 只使用 window.WARDROBE_CONFIG（public/config.js）
 
 (() => {
   const CATEGORIES = ["首飾", "上衣", "下身裝扮", "鞋子", "襪子", "其他裝扮"];
+  const PAGE_SIZE = 5;
 
   const CATEGORY_Z_INDEX = {
     "襪子": 10,
@@ -26,10 +27,14 @@
     // itemId -> item
     itemsById: new Map(),
 
-    activeCategory: CATEGORIES[0],
+    // category -> pageIndex (0-based)
+    pageByCategory: new Map(),
 
-    // URL.createObjectURL 管理（避免多次載入資料夾後記憶體累積）
-    objectUrls: [],
+    // category -> button element
+    categoryButtons: new Map(),
+
+    activeCategory: CATEGORIES[0],
+    lastBaseFrontSrc: "",
   };
 
   function setStatus(text) {
@@ -86,22 +91,16 @@
     CATEGORIES.forEach((cat) => state.equipped.set(cat, null));
   }
 
+  function initPagination() {
+    state.pageByCategory = new Map();
+    CATEGORIES.forEach((cat) => state.pageByCategory.set(cat, 0));
+  }
+
   function rebuildIndex() {
     state.itemsById = new Map();
     state.wardrobe.items.forEach((item) => {
       state.itemsById.set(item.id, item);
     });
-  }
-
-  function revokeObjectUrls() {
-    state.objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    state.objectUrls = [];
-  }
-
-  function createObjectUrl(file) {
-    const url = URL.createObjectURL(file);
-    state.objectUrls.push(url);
-    return url;
   }
 
   function applyBaseImage(src) {
@@ -124,6 +123,11 @@
       placeholder.style.display = "grid";
       const text = placeholder.querySelector(".model-placeholder__text");
       if (text) text.textContent = "尚未放入人物底圖（正面）";
+      state.lastBaseFrontSrc = "";
+      return;
+    }
+
+    if (state.lastBaseFrontSrc === src && img.getAttribute("src") && img.style.display !== "none") {
       return;
     }
 
@@ -138,81 +142,102 @@
     };
 
     img.src = src;
+    state.lastBaseFrontSrc = src;
   }
 
-  function renderModel() {
+  function getOverlayImgSelector(category) {
+    if (window.CSS && typeof window.CSS.escape === "function") {
+      return `img[data-category="${window.CSS.escape(category)}"]`;
+    }
+
+    return `img[data-category="${category}"]`;
+  }
+
+  function updateModelOverlays() {
     const viewEl = document.querySelector('#modelStage .model-view[data-view="front"]');
     if (!viewEl) return;
 
     const overlays = viewEl.querySelector(".model-overlays");
     if (!overlays) return;
 
-    overlays.innerHTML = "";
-    applyBaseImage(state.wardrobe.baseModel.front);
-
-    const equippedItems = [];
     CATEGORIES.forEach((cat) => {
+      const existing = overlays.querySelector(getOverlayImgSelector(cat));
       const itemId = state.equipped.get(cat);
-      if (!itemId) return;
+
+      if (!itemId) {
+        if (existing) existing.remove();
+        return;
+      }
 
       const item = state.itemsById.get(itemId);
       const src = item && item.images && item.images.front;
-      if (!src) return;
 
-      equippedItems.push({
-        category: cat,
-        src,
-        z: CATEGORY_Z_INDEX[cat] ?? 0,
-      });
-    });
+      if (!src) {
+        if (existing) existing.remove();
+        return;
+      }
 
-    equippedItems
-      .sort((a, b) => a.z - b.z)
-      .forEach(({ category, src, z }) => {
-        const img = document.createElement("img");
+      const img = existing || document.createElement("img");
+      if (!existing) {
         img.alt = "";
-        img.src = src;
-        img.style.zIndex = String(z);
-        img.dataset.category = category;
+        img.dataset.category = cat;
         img.addEventListener("error", () => img.remove());
         overlays.appendChild(img);
-      });
+      }
+
+      if (img.getAttribute("src") !== src) {
+        img.src = src;
+      }
+
+      img.style.zIndex = String(CATEGORY_Z_INDEX[cat] ?? 0);
+    });
+  }
+
+  function updateCategoryFiltersActiveState() {
+    state.categoryButtons.forEach((btn, cat) => {
+      const active = state.activeCategory === cat;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
   }
 
   function setActiveCategory(category) {
     state.activeCategory = category;
-    render();
+    updateCategoryFiltersActiveState();
+    renderShelf();
   }
 
-  function renderCategoryFilters() {
+  function initCategoryFilters() {
     const root = document.getElementById("categoryFilters");
     if (!root) return;
 
     root.innerHTML = "";
+    state.categoryButtons = new Map();
 
     CATEGORIES.forEach((cat) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className =
-        "subcategory-button category-filter-button" + (state.activeCategory === cat ? " is-active" : "");
+      btn.className = "subcategory-button category-filter-button";
       btn.textContent = cat;
       btn.dataset.category = cat;
       btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-selected", state.activeCategory === cat ? "true" : "false");
+      btn.setAttribute("aria-selected", "false");
 
       btn.addEventListener("click", () => setActiveCategory(cat));
+
       root.appendChild(btn);
+      state.categoryButtons.set(cat, btn);
     });
   }
 
-  function createItemThumb(src) {
+  function createSlotThumb(src, fallbackText = "沒有圖片") {
     const thumb = document.createElement("div");
-    thumb.className = "item-thumb";
+    thumb.className = "slot-thumb";
 
     if (!src) {
       const fallback = document.createElement("div");
-      fallback.className = "item-thumb__fallback";
-      fallback.textContent = "沒有圖片";
+      fallback.className = "slot-thumb__fallback";
+      fallback.textContent = fallbackText;
       thumb.appendChild(fallback);
       return thumb;
     }
@@ -224,19 +249,13 @@
     img.addEventListener("error", () => {
       img.remove();
       const fallback = document.createElement("div");
-      fallback.className = "item-thumb__fallback";
+      fallback.className = "slot-thumb__fallback";
       fallback.textContent = "圖片不存在";
       thumb.appendChild(fallback);
     });
 
     thumb.appendChild(img);
     return thumb;
-  }
-
-  function toggleEquip(category, itemId) {
-    const current = state.equipped.get(category);
-    state.equipped.set(category, current === itemId ? null : itemId);
-    render();
   }
 
   function safeLocaleCompare(a, b) {
@@ -247,42 +266,145 @@
     }
   }
 
-  function renderWardrobeItems() {
+  function getCategoryItems(category) {
+    return state.wardrobe.items
+      .filter((item) => item.category === category)
+      .sort((a, b) => safeLocaleCompare(a.name, b.name));
+  }
+
+  function clamp(value, min, max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
+
+  function renderShelf() {
     const root = document.getElementById("wardrobeItems");
     if (!root) return;
 
-    root.innerHTML = "";
+    const category = state.activeCategory;
+    const items = getCategoryItems(category);
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
 
-    const items = state.wardrobe.items
-      .filter((item) => item.category === state.activeCategory)
-      .sort((a, b) => safeLocaleCompare(a.name, b.name));
-
-    if (!items.length) {
-      const empty = document.createElement("div");
-      empty.className = "equipped-empty";
-      empty.textContent = "此分類沒有素材";
-      root.appendChild(empty);
-      return;
+    const currentPage = clamp(state.pageByCategory.get(category) ?? 0, 0, totalPages - 1);
+    if (currentPage !== (state.pageByCategory.get(category) ?? 0)) {
+      state.pageByCategory.set(category, currentPage);
     }
 
-    const equippedId = state.equipped.get(state.activeCategory);
+    const startIndex = currentPage * PAGE_SIZE;
+    const pageItems = items.slice(startIndex, startIndex + PAGE_SIZE);
 
-    items.forEach((item) => {
+    const equippedId = state.equipped.get(category);
+
+    root.innerHTML = "";
+
+    const shelf = document.createElement("section");
+    shelf.className = "shelf";
+
+    const header = document.createElement("div");
+    header.className = "shelf-header";
+
+    const title = document.createElement("div");
+    title.className = "shelf-title";
+
+    const titleName = document.createElement("div");
+    titleName.className = "shelf-title__name";
+    titleName.textContent = category;
+
+    const titleMeta = document.createElement("div");
+    titleMeta.className = "shelf-title__meta";
+    titleMeta.textContent = `第 ${currentPage + 1} / ${totalPages} 頁 · 共 ${items.length} 件`;
+
+    title.appendChild(titleName);
+    title.appendChild(titleMeta);
+
+    const controls = document.createElement("div");
+    controls.className = "shelf-controls";
+
+    const prevBtn = document.createElement("button");
+    prevBtn.type = "button";
+    prevBtn.className = "icon-button";
+    prevBtn.textContent = "‹";
+    prevBtn.setAttribute("aria-label", "上一頁");
+    prevBtn.disabled = currentPage <= 0;
+    prevBtn.addEventListener("click", () => {
+      const page = state.pageByCategory.get(category) ?? 0;
+      state.pageByCategory.set(category, Math.max(0, page - 1));
+      renderShelf();
+    });
+
+    const nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.className = "icon-button";
+    nextBtn.textContent = "›";
+    nextBtn.setAttribute("aria-label", "下一頁");
+    nextBtn.disabled = currentPage >= totalPages - 1;
+    nextBtn.addEventListener("click", () => {
+      const page = state.pageByCategory.get(category) ?? 0;
+      state.pageByCategory.set(category, Math.min(totalPages - 1, page + 1));
+      renderShelf();
+    });
+
+    controls.appendChild(prevBtn);
+    controls.appendChild(nextBtn);
+
+    header.appendChild(title);
+    header.appendChild(controls);
+
+    const slots = document.createElement("div");
+    slots.className = "shelf-slots";
+
+    pageItems.forEach((item) => {
       const card = document.createElement("button");
       card.type = "button";
-      card.className = "item-card" + (equippedId === item.id ? " is-selected" : "");
+      card.className = "slot-card" + (equippedId === item.id ? " is-selected" : "");
+      card.setAttribute("aria-pressed", equippedId === item.id ? "true" : "false");
 
-      card.appendChild(createItemThumb(item.images.front));
+      card.appendChild(createSlotThumb(item.images.front));
 
       const name = document.createElement("div");
-      name.className = "item-name";
+      name.className = "slot-name";
       name.textContent = item.name;
       card.appendChild(name);
 
-      card.addEventListener("click", () => toggleEquip(item.category, item.id));
+      card.addEventListener("click", () => {
+        toggleEquip(item.category, item.id);
+      });
 
-      root.appendChild(card);
+      slots.appendChild(card);
     });
+
+    for (let i = pageItems.length; i < PAGE_SIZE; i += 1) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "slot-card";
+      card.disabled = true;
+
+      card.appendChild(createSlotThumb("", "空"));
+
+      const name = document.createElement("div");
+      name.className = "slot-name";
+      name.textContent = "空格";
+      card.appendChild(name);
+
+      slots.appendChild(card);
+    }
+
+    shelf.appendChild(header);
+    shelf.appendChild(slots);
+    root.appendChild(shelf);
+  }
+
+  function toggleEquip(category, itemId) {
+    const current = state.equipped.get(category);
+    state.equipped.set(category, current === itemId ? null : itemId);
+    renderEquippedChips();
+
+    if (state.activeCategory === category) {
+      renderShelf();
+    }
+
+    updateModelOverlays();
   }
 
   function renderEquippedChips() {
@@ -328,7 +450,13 @@
       remove.addEventListener("click", (evt) => {
         evt.stopPropagation();
         state.equipped.set(cat, null);
-        render();
+        renderEquippedChips();
+
+        if (state.activeCategory === cat) {
+          renderShelf();
+        }
+
+        updateModelOverlays();
       });
 
       const focusCategory = () => setActiveCategory(cat);
@@ -348,21 +476,16 @@
     });
   }
 
-  function render() {
-    renderCategoryFilters();
-    renderWardrobeItems();
-    renderEquippedChips();
-    renderModel();
-  }
-
   function clearAll() {
     CATEGORIES.forEach((cat) => state.equipped.set(cat, null));
-    render();
+    renderEquippedChips();
+    renderShelf();
+    updateModelOverlays();
   }
 
   function randomWear() {
     CATEGORIES.forEach((cat) => {
-      const candidates = state.wardrobe.items.filter((item) => item.category === cat);
+      const candidates = getCategoryItems(cat);
       if (!candidates.length) {
         state.equipped.set(cat, null);
         return;
@@ -378,7 +501,9 @@
       state.equipped.set(cat, candidates[pick - 1].id);
     });
 
-    render();
+    renderEquippedChips();
+    renderShelf();
+    updateModelOverlays();
   }
 
   function initButtons() {
@@ -389,97 +514,9 @@
     if (randomWearBtn) randomWearBtn.addEventListener("click", randomWear);
   }
 
-  function scanSelectedFolder(fileList) {
-    const files = Array.from(fileList || []);
-
-    revokeObjectUrls();
-
-    const wardrobe = {
-      baseModel: { front: "" },
-      items: [],
-    };
-
-    const idSet = new Set();
-    const baseRegex = /(?:^|\/)模特兒\/model\.png$/i;
-
-    files.forEach((file) => {
-      const rawPath = String(file.webkitRelativePath || file.name || "");
-      const path = rawPath.replace(/\\/g, "/");
-
-      if (!/\.png$/i.test(path)) return;
-
-      if (!wardrobe.baseModel.front && baseRegex.test(path)) {
-        wardrobe.baseModel.front = createObjectUrl(file);
-        return;
-      }
-
-      const parts = path.split("/").filter(Boolean);
-      const outfitIndex = parts.lastIndexOf("裝扮");
-      if (outfitIndex < 0) return;
-
-      const category = parts[outfitIndex + 1];
-      const filename = parts[outfitIndex + 2];
-      if (!category || !filename) return;
-
-      // 只吃：裝扮/<分類>/<檔名>.png（不往下遞迴）
-      if (outfitIndex + 3 !== parts.length) return;
-
-      if (!CATEGORIES.includes(category)) return;
-
-      const name = filename.replace(/\.png$/i, "");
-
-      let id = `${category}__${name}`;
-      if (idSet.has(id)) {
-        let n = 2;
-        while (idSet.has(`${id}_${n}`)) n += 1;
-        id = `${id}_${n}`;
-      }
-      idSet.add(id);
-
-      wardrobe.items.push({
-        id,
-        name,
-        category,
-        images: { front: createObjectUrl(file) },
-      });
-    });
-
-    wardrobe.items.sort((a, b) => safeLocaleCompare(a.name, b.name));
-
-    state.wardrobe = wardrobe;
-    initEquipped();
-    rebuildIndex();
-
-    if (!wardrobe.baseModel.front) {
-      setStatus("已載入資料夾，但找不到 模特兒/model.png（只支援 PNG）");
-    } else {
-      setStatus(`已從資料夾載入素材（${wardrobe.items.length} 件）`);
-    }
-
-    render();
-  }
-
-  function initAssetFolderInput() {
-    const input = document.getElementById("assetFolderInput");
-    const btn = document.getElementById("reloadAssetsBtn");
-
-    if (btn && input) {
-      btn.addEventListener("click", () => {
-        input.value = "";
-        input.click();
-      });
-    }
-
-    if (input) {
-      input.addEventListener("change", () => {
-        if (!input.files || !input.files.length) return;
-        scanSelectedFolder(input.files);
-      });
-    }
-  }
-
   document.addEventListener("DOMContentLoaded", () => {
     initEquipped();
+    initPagination();
 
     const config = window.WARDROBE_CONFIG;
     if (config && typeof config === "object") {
@@ -487,16 +524,20 @@
       setStatus("已載入衣櫃資料（config.js）");
     } else {
       state.wardrobe = { baseModel: { front: "" }, items: [] };
-      setStatus("尚未提供 config.js，請用「載入素材資料夾」選擇素材");
+      setStatus("尚未提供 config.js（請編輯 public/config.js）");
     }
 
     state.wardrobe.items = Array.isArray(state.wardrobe.items) ? state.wardrobe.items : [];
-    initEquipped();
     rebuildIndex();
 
     initButtons();
-    initAssetFolderInput();
+    initCategoryFilters();
+    updateCategoryFiltersActiveState();
 
-    render();
+    applyBaseImage(state.wardrobe.baseModel.front);
+
+    renderEquippedChips();
+    renderShelf();
+    updateModelOverlays();
   });
 })();

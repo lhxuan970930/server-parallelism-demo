@@ -12,7 +12,7 @@
     <header class="app-header">
       <div class="app-header__left">
         <h1 class="app-title">換裝遊戲</h1>
-        <p class="app-subtitle">左邊預覽人物；右邊衣櫃用分類篩選挑選裝扮，點選即可穿上／再點一次可移除。</p>
+        <p class="app-subtitle">左邊預覽人物；右邊衣櫃每個分類固定 5 格（可翻頁），點選即可穿上／再點一次可移除。</p>
       </div>
       <div class="app-header__right">
         <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -25,8 +25,6 @@
           <div class="model-actions" aria-label="快捷操作">
             <button id="clearAllBtn" class="text-button" type="button">一鍵脫下</button>
             <button id="randomWearBtn" class="text-button" type="button">隨機穿上</button>
-            <button id="reloadAssetsBtn" class="text-button" type="button">載入素材資料夾</button>
-            <input id="assetFolderInput" type="file" webkitdirectory directory multiple accept="image/png" hidden />
           </div>
         </div>
 
@@ -53,7 +51,7 @@
           <div id="equippedChips" class="equipped-chips" aria-label="目前穿戴"></div>
         </div>
 
-        <div id="wardrobeItems" class="items-grid" aria-label="裝扮列表"></div>
+        <div id="wardrobeItems" class="wardrobe-shelves" aria-label="裝扮槽位"></div>
       </aside>
     </main>
   </body>
