@@ -57,7 +57,10 @@ const state = {
   // 人物視角（compare=false 時才有用）
   activeView: "front",
 
-  // 預設同時顯示正反面（符合需求）
+  // 是否支援背面資產（啟動後由資料決定）
+  supportsBackView: true,
+
+  // 預設同時顯示正反面模型；若沒有背面資產，啟動時會自動關閉
   compare: true,
 };
 
@@ -161,6 +164,22 @@ function setStatus(text) {
 }
 
 async function loadWardrobe() {
+  const config = window.WARDROBE_CONFIG;
+  if (config && typeof config === "object") {
+    setStatus("已載入衣櫃資料（config.js）");
+    return normalizeWardrobe(config);
+  }
+
+  try {
+    const res = await fetch("./wardrobe.json", { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    setStatus("已載入衣櫃資料（./wardrobe.json）");
+    return normalizeWardrobe(json);
+  } catch {
+    // ignore
+  }
+
   try {
     const res = await fetch("/api/wardrobe", { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -168,8 +187,45 @@ async function loadWardrobe() {
     setStatus("已載入衣櫃資料（/api/wardrobe）");
     return normalizeWardrobe(json);
   } catch {
-    setStatus("無法讀取 /api/wardrobe，改用內建範例資料");
+    setStatus("無法讀取衣櫃資料，改用內建範例資料");
     return normalizeWardrobe(DEFAULT_WARDROBE);
+  }
+}
+
+function hasBackAssets(wardrobe) {
+  if (!wardrobe || typeof wardrobe !== "object") return false;
+  if (wardrobe.baseModel && wardrobe.baseModel.back) return true;
+  const items = Array.isArray(wardrobe.items) ? wardrobe.items : [];
+  return items.some((item) => item && item.images && item.images.back);
+}
+
+function applyBackViewVisibility() {
+  if (state.supportsBackView) return;
+
+  // 強制使用「只有正面」模式
+  state.activeView = "front";
+  state.compare = false;
+
+  const stage = document.getElementById("modelStage");
+  if (stage) {
+    stage.dataset.mode = "single";
+    stage.dataset.activeView = "front";
+  }
+
+  // 移除/隱藏背面與比較 UI，避免使用者困惑
+  const backButton = document.querySelector('.segmented-button[data-view="back"]');
+  if (backButton) backButton.remove();
+
+  const compareToggleLabel = document.querySelector(".compare-toggle");
+  if (compareToggleLabel) compareToggleLabel.remove();
+
+  const backView = document.querySelector('.model-view[data-view="back"]');
+  if (backView) backView.remove();
+
+  const viewToggle = document.querySelector(".view-toggle");
+  if (viewToggle) {
+    const buttons = viewToggle.querySelectorAll(".segmented-button");
+    if (buttons.length <= 1) viewToggle.style.display = "none";
   }
 }
 
@@ -423,11 +479,10 @@ function renderShelf(category) {
 
   shelf.appendChild(header);
 
-  // accessories 子分類按鈕（頭飾/耳飾...）
+  // accessories 子分類按紐（頭飾/耳飾...）
   if (category === "accessories") {
     const subnav = document.createElement("div");
     subnav.className = "shelf-subnav";
-
     state.slots
       .filter((s) => s.category === "accessories")
       .forEach((slot) => {
@@ -620,6 +675,7 @@ function render() {
 }
 
 function mount() {
+  applyBackViewVisibility();
   initViewControls();
   render();
 }
@@ -627,6 +683,13 @@ function mount() {
 document.addEventListener("DOMContentLoaded", async () => {
   state.wardrobe = await loadWardrobe();
   state.wardrobe.items = Array.isArray(state.wardrobe.items) ? state.wardrobe.items : [];
+
+  // 若整包素材都沒有背面，UI 自動收斂成「只有正面」
+  state.supportsBackView = hasBackAssets(state.wardrobe);
+  if (!state.supportsBackView) {
+    state.activeView = "front";
+    state.compare = false;
+  }
 
   state.slots = computeSlots(state.wardrobe);
   initEquipped(state.slots);
