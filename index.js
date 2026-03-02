@@ -123,6 +123,21 @@ async function parseItemDir({ absItemDir, category, subcategory }) {
     images: { front: frontUrl, back: backUrl },
     thumbnail: thumbUrl,
     zIndex: meta && Number.isFinite(meta.zIndex) ? meta.zIndex : undefined,
+    isPlaceholder: false,
+  };
+}
+
+function parsePlaceholderDir({ absItemDir, category, subcategory }) {
+  const itemKey = path.basename(absItemDir);
+
+  return {
+    id: `${category}_${subcategory ? `${subcategory}_` : ''}${itemKey}`,
+    name: humanize(itemKey),
+    category,
+    subcategory: subcategory || '',
+    images: { front: '', back: '' },
+    thumbnail: '',
+    isPlaceholder: true,
   };
 }
 
@@ -161,6 +176,14 @@ async function scanFolder({ absDir, category, subcategory, items, depth }) {
 
     if (hasPng) {
       items.push(await parseItemDir({ absItemDir: absEntry, category, subcategory }));
+      continue;
+    }
+
+    // Placeholder slots: empty folders that you created as "reserved" items (no PNGs yet).
+    // Example: assets/wardrobe/top/slot_01/ (empty)
+    // We still surface them in the wardrobe grid as blank cards.
+    if (category !== 'accessories' && depth === 0) {
+      items.push(parsePlaceholderDir({ absItemDir: absEntry, category, subcategory }));
       continue;
     }
 
