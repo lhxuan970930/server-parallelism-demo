@@ -90,10 +90,17 @@ body {
 
 .model-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+.model-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .view-toggle {
@@ -244,6 +251,19 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.wardrobe-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .wardrobe-header .section-title {
@@ -597,6 +617,10 @@ body {
   background: rgba(124, 58, 237, 0.12);
   border-color: rgba(124, 58, 237, 0.2);
   color: rgba(16, 24, 40, 0.92);
+}
+
+.category-filter-button {
+  font-size: 12px;
 }
 
 .items-grid {

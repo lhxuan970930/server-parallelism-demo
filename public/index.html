@@ -12,7 +12,7 @@
     <header class="app-header">
       <div class="app-header__left">
         <h1 class="app-title">換裝遊戲</h1>
-        <p class="app-subtitle">左邊預覽人物；右邊衣櫃每個分類一次顯示 5 個槽位，點選即可穿上／再點一次可移除。</p>
+        <p class="app-subtitle">左邊預覽人物；右邊衣櫃用分類篩選挑選裝扮，點選即可穿上／再點一次可移除。</p>
       </div>
       <div class="app-header__right">
         <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -22,18 +22,15 @@
     <main class="app">
       <section class="model-pane" aria-label="人物預覽">
         <div class="model-toolbar">
-          <div class="view-toggle" role="tablist" aria-label="人物視角">
-            <button class="segmented-button is-active" type="button" data-view="front" role="tab" aria-selected="true">正面</button>
-            <button class="segmented-button" type="button" data-view="back" role="tab" aria-selected="false">背面</button>
+          <div class="model-actions" aria-label="快捷操作">
+            <button id="clearAllBtn" class="text-button" type="button">一鍵脫下</button>
+            <button id="randomWearBtn" class="text-button" type="button">隨機穿上</button>
+            <button id="reloadAssetsBtn" class="text-button" type="button">載入素材資料夾</button>
+            <input id="assetFolderInput" type="file" webkitdirectory directory multiple accept="image/png" hidden />
           </div>
-
-          <label class="compare-toggle">
-            <input id="compareToggle" type="checkbox" checked />
-            同時顯示
-          </label>
         </div>
 
-        <div id="modelStage" class="model-stage" data-mode="compare" data-active-view="front">
+        <div id="modelStage" class="model-stage" data-mode="single" data-active-view="front">
           <div class="model-view" data-view="front" aria-label="正面">
             <div class="model-frame">
               <div class="model-placeholder" data-kind="base" aria-hidden="true">
@@ -44,27 +41,19 @@
               <div class="model-overlays" aria-hidden="true"></div>
             </div>
           </div>
-
-          <div class="model-view" data-view="back" aria-label="背面">
-            <div class="model-frame">
-              <div class="model-placeholder" data-kind="base" aria-hidden="true">
-                <div class="model-placeholder__silhouette"></div>
-                <div class="model-placeholder__text">尚未放入人物底圖（背面）</div>
-              </div>
-              <img class="model-base" alt="人物底圖 背面" />
-              <div class="model-overlays" aria-hidden="true"></div>
-            </div>
-          </div>
         </div>
       </section>
 
       <aside class="wardrobe-pane" aria-label="衣櫃">
         <div class="wardrobe-header">
-          <div class="section-title">衣櫃</div>
+          <div class="wardrobe-header__left">
+            <div class="section-title">衣櫃</div>
+            <div id="categoryFilters" class="category-filters" role="tablist" aria-label="分類篩選"></div>
+          </div>
           <div id="equippedChips" class="equipped-chips" aria-label="目前穿戴"></div>
         </div>
 
-        <div id="wardrobeShelves" class="wardrobe-shelves" aria-label="分類與槽位"></div>
+        <div id="wardrobeItems" class="items-grid" aria-label="裝扮列表"></div>
       </aside>
     </main>
   </body>

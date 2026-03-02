@@ -1,34 +1,32 @@
 // 使用者只需要修改這個檔案即可（純靜態版本，不需要後端）
 //
 // 檔案結構建議：
-// - 模特兒：./模特兒/model.png（正面）
-// - 裝扮：./裝扮/*.png（預設單張 PNG = 正面；背面可選）
+// - 模特兒：./模特兒/model.png（只使用正面）
+// - 裝扮：./裝扮/<分類>/<檔名>.png（只使用正面）
+//   例如：./裝扮/上衣/帽T.png
 //
-// category 建議使用：accessories / top / bottom / socks / shoes
-// accessories 建議加 subcategory（會對應到不同「飾品槽」）：
-// headwear / earrings / necklace / glasses / bag（可自行新增其他 key）
+// items 的 category 請使用中文資料夾名（需與 ./裝扮 底下資料夾一致）：
+// "首飾"、"上衣"、"下身裝扮"、"鞋子"、"襪子"、"其他裝扮"
+//
+// 若不想手寫 items 清單，可用頁面上的「載入素材資料夾」自動讀取並產生。
 
 window.WARDROBE_CONFIG = {
   baseModel: {
     front: "./模特兒/model.png",
-    back: "",
   },
   items: [
     // 範例（把註解拿掉並改成你的檔名即可）：
     // {
     //   id: "top_hoodie",
     //   name: "帽T",
-    //   category: "top",
-    //   front: "./裝扮/帽T.png",
-    //   back: "",
+    //   category: "上衣",
+    //   front: "./裝扮/上衣/帽T.png",
     // },
     // {
     //   id: "acc_cap",
     //   name: "帽子",
-    //   category: "accessories",
-    //   subcategory: "headwear",
-    //   front: "./裝扮/帽子.png",
-    //   back: "",
+    //   category: "首飾",
+    //   front: "./裝扮/首飾/帽子.png",
     // },
   ],
 };
