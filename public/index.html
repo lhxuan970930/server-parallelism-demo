@@ -4,14 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>換裝遊戲</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+    <meta property="og:image" content="https://screenshot.cosine.page?url=https://m2qvm3i510gt.cosine.page" />
+    <script src="https://cosine.sh/preview/script.js"></script>
   </head>
   <body>
     <header class="app-header">
       <div class="app-header__left">
         <h1 class="app-title">換裝遊戲</h1>
-        <p class="app-subtitle">點選右側衣櫃的物件即可穿上；選 <strong>無</strong> 可移除。</p>
+        <p class="app-subtitle">左邊預覽人物；右邊衣櫃每個分類固定 5 格（可翻頁），點選即可穿上／再點一次可移除。</p>
       </div>
       <div class="app-header__right">
         <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -21,15 +23,10 @@
     <main class="app">
       <section class="model-pane" aria-label="人物預覽">
         <div class="model-toolbar">
-          <div class="view-toggle" role="tablist" aria-label="人物視角">
-            <button class="segmented-button is-active" type="button" data-view="front" role="tab" aria-selected="true">正面</button>
-            <button class="segmented-button" type="button" data-view="back" role="tab" aria-selected="false">背面</button>
+          <div class="model-actions" aria-label="快捷操作">
+            <button id="clearAllBtn" class="text-button" type="button">一鍵脫下</button>
+            <button id="randomWearBtn" class="text-button" type="button">隨機穿上</button>
           </div>
-
-          <label class="compare-toggle">
-            <input id="compareToggle" type="checkbox" />
-            同時顯示
-          </label>
         </div>
 
         <div id="modelStage" class="model-stage" data-mode="single" data-active-view="front">
@@ -43,35 +40,28 @@
               <div class="model-overlays" aria-hidden="true"></div>
             </div>
           </div>
-
-          <div class="model-view" data-view="back" aria-label="背面">
-            <div class="model-frame">
-              <div class="model-placeholder" data-kind="base" aria-hidden="true">
-                <div class="model-placeholder__silhouette"></div>
-                <div class="model-placeholder__text">尚未放入人物底圖（背面）</div>
-              </div>
-              <img class="model-base" alt="人物底圖 背面" />
-              <div class="model-overlays" aria-hidden="true"></div>
-            </div>
-          </div>
         </div>
       </section>
 
       <aside class="wardrobe-pane" aria-label="衣櫃">
-        <section class="equipped" aria-label="已穿戴">
-          <div class="section-title">已穿戴</div>
-          <div id="equippedPanel" class="equipped-list"></div>
-        </section>
-
-        <section class="wardrobe" aria-label="衣櫃物件">
-          <nav id="categoryNav" class="category-nav" aria-label="分類"></nav>
-
-          <div class="wardrobe-content">
-            <div id="subcategoryNav" class="subcategory-nav" aria-label="飾品分類"></div>
-            <div id="itemsGrid" class="items-grid" aria-label="物件"></div>
+        <div class="wardrobe-header">
+          <div class="wardrobe-header__left">
+            <div class="section-title">衣櫃</div>
+            <div id="categoryFilters" class="category-filters" role="tablist" aria-label="分類篩選"></div>
           </div>
-        </section>
+          <div id="equippedChips" class="equipped-chips" aria-label="目前穿戴"></div>
+        </div>
+
+        <div id="wardrobeItems" class="wardrobe-shelves" aria-label="裝扮槽位"></div>
       </aside>
     </main>
+
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js/v67327c56f0bb4ef8b305cae61679db8f1769101564043"
+      integrity="sha512-rdcWY47ByXd76cbCFzznIcEaCN71jqkWBBqlwhF1SY7KubdLKZiEGeP7AyieKZlGP9hbY/MhGrwXzJC/HulNyg=="
+      data-cf-beacon='{"version":"2024.11.0","token":"ad0c2b25e44a4e4aa387cdb33572cae5","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
+      crossorigin="anonymous"
+    ></script>
   </body>
 </html>
