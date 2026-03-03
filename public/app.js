@@ -270,7 +270,7 @@
     });
   }
 
-  function createSlotThumb(src, fallbackText = "沒有圖片") {
+  function createSlotThumb(src, fallbackText = "空") {
     const thumb = document.createElement("div");
     thumb.className = "slot-thumb";
 
@@ -290,7 +290,7 @@
       img.remove();
       const fallback = document.createElement("div");
       fallback.className = "slot-thumb__fallback";
-      fallback.textContent = "圖片不存在";
+      fallback.textContent = fallbackText;
       thumb.appendChild(fallback);
     });
 
