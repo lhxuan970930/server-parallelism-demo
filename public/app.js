@@ -1,321 +1,303 @@
-const DEFAULT_WARDROBE = {
-  baseModel: {
-    front: "",
-    back: "",
-  },
-  items: [
-    { id: "acc_headwear_beanie", name: "Beanie", category: "accessories", subcategory: "headwear" },
-    { id: "acc_earrings_studs", name: "Stud Earrings", category: "accessories", subcategory: "earrings" },
-    { id: "acc_necklace_chain", name: "Chain Necklace", category: "accessories", subcategory: "necklace" },
-    { id: "top_tee", name: "T-Shirt", category: "top" },
-    { id: "top_hoodie", name: "Hoodie", category: "top" },
-    { id: "bottom_jeans", name: "Jeans", category: "bottom" },
-    { id: "bottom_skirt", name: "Skirt", category: "bottom" },
-    { id: "socks_ankle", name: "Ankle Socks", category: "socks" },
-    { id: "shoes_sneakers", name: "Sneakers", category: "shoes" },
-  ],
-};
+// 換裝遊戲前端（純 HTML/CSS/JS）
+// - 只支援正面（front）
+// - 純靜態版：素材清單內建於 app.js（適用 cosine.page 靜態部署；不使用 /api/wardrobe）
 
-const CATEGORY_ORDER = ["accessories", "top", "bottom", "socks", "shoes"];
+(() => {
+  // 內建素材清單（請把對應 PNG 放在 public/ 下的路徑）
+  const WARDROBE_DATA = {
+    baseModel: {
+      // 你可以先留空字串讓畫面顯示 placeholder；或放入正確路徑。
+      front: "./模特兒/model.png",
+    },
+    items: [
+      {
+        id: "accessory_necklace_1",
+        name: "項鍊",
+        category: "首飾",
+        front: "./裝扮/首飾/項鍊.png",
+      },
+      {
+        id: "top_1",
+        name: "上衣1",
+        category: "上衣",
+        front: "./裝扮/上衣/上衣1.png",
+      },
+      {
+        id: "top_2",
+        name: "上衣2",
+        category: "上衣",
+        front: "./裝扮/上衣/上衣2.png",
+      },
+      {
+        id: "bottom_1",
+        name: "褲子",
+        category: "下身裝扮",
+        front: "./裝扮/下身裝扮/褲子1.png",
+      },
+      {
+        id: "shoes_1",
+        name: "鞋子",
+        category: "鞋子",
+        front: "./裝扮/鞋子/鞋子1.png",
+      },
+      {
+        id: "socks_1",
+        name: "襪子",
+        category: "襪子",
+        front: "./裝扮/襪子/襪子1.png",
+      },
+    ],
+  };
 
-const CATEGORY_LABELS = {
-  accessories: "飾品",
-  top: "上身",
-  bottom: "下身",
-  socks: "襪子",
-  shoes: "鞋子",
-};
+  const CATEGORIES = ["首飾", "上衣", "下身裝扮", "鞋子", "襪子"];
+  const PAGE_SIZE = 5;
 
-const ACCESSORY_DEFAULTS = [
-  { key: "headwear", label: "頭飾" },
-  { key: "earrings", label: "耳飾" },
-  { key: "necklace", label: "項鍊" },
-  { key: "glasses", label: "眼鏡" },
-  { key: "bag", label: "包包" },
-];
+  // 圖層：鞋子必須在襪子上面
+  const CATEGORY_Z_INDEX = {
+    首飾: 10,
+    上衣: 20,
+    下身裝扮: 30,
+    襪子: 40,
+    鞋子: 50,
+  };
 
-const SLOT_BASE = [
-  { key: "top", label: "上身" },
-  { key: "bottom", label: "下身" },
-  { key: "socks", label: "襪子" },
-  { key: "shoes", label: "鞋子" },
-];
+  const state = {
+    wardrobe: {
+      baseModel: { front: "" },
+      items: [],
+    },
 
-const state = {
-  wardrobe: null,
-  itemsById: new Map(),
-  equipped: new Map(),
-  slots: [],
-  activeCategory: "accessories",
-  activeAccessorySub: "headwear",
-  activeView: "front",
-  compare: false,
-};
+    // category -> itemId | null
+    equipped: new Map(),
 
-function flattenCategories(categories) {
-  const items = [];
+    // itemId -> item
+    itemsById: new Map(),
 
-  categories.forEach((cat) => {
-    const categoryName = String(cat.name || cat.category || cat.id || "").toLowerCase();
-    const directItems = Array.isArray(cat.items) ? cat.items : [];
+    // category -> pageIndex (0-based)
+    pageByCategory: new Map(),
 
-    directItems.forEach((it) => {
-      items.push({ ...it, category: it.category || categoryName, subcategory: it.subcategory || "" });
-    });
+    // category -> button element
+    categoryButtons: new Map(),
 
-    const subcats = Array.isArray(cat.subcategories) ? cat.subcategories : [];
-    subcats.forEach((sub) => {
-      const subName = String(sub.name || sub.subcategory || sub.id || "").toLowerCase();
-      const subItems = Array.isArray(sub.items) ? sub.items : [];
-      subItems.forEach((it) => {
-        items.push({ ...it, category: it.category || categoryName, subcategory: it.subcategory || subName });
-      });
-    });
-  });
+    activeCategory: CATEGORIES[0],
+    lastBaseFrontSrc: "",
+  };
 
-  return items;
-}
+  function setStatus(text) {
+    const el = document.getElementById("status");
+    if (!el) return;
+    el.textContent = text || "";
+  }
 
-function normalizeWardrobe(raw) {
-  const obj = raw && typeof raw === "object" ? raw : {};
+  function ensureKnownCategory(category) {
+    return CATEGORIES.includes(category) ? category : null;
+  }
 
-  const items = Array.isArray(obj)
-    ? obj
-    : Array.isArray(obj.items)
+  function normalizeItem(raw, idx) {
+    const obj = raw && typeof raw === "object" ? raw : {};
+
+    const category = ensureKnownCategory(String(obj.category || "").trim());
+    if (!category) return null;
+
+    const front =
+      obj.front ||
+      obj.frontImage ||
+      (obj.images && (obj.images.front || obj.images.Front)) ||
+      "";
+
+    const name = String(obj.name || obj.title || obj.label || "物件").trim();
+
+    return {
+      id: String(obj.id || `${category}__${name || "item"}_${idx}`),
+      name: name || "物件",
+      category,
+      images: { front },
+    };
+  }
+
+  function normalizeWardrobe(raw) {
+    const obj = raw && typeof raw === "object" ? raw : {};
+    const base = obj.baseModel || obj.base || obj.model || {};
+
+    const items = Array.isArray(obj.items)
       ? obj.items
       : Array.isArray(obj.wardrobe)
         ? obj.wardrobe
-        : Array.isArray(obj.categories)
-          ? flattenCategories(obj.categories)
-          : [];
+        : [];
 
-  const base = obj.baseModel || obj.base || obj.model || {};
-
-  return {
-    baseModel: {
-      front: base.front || base.frontImage || base.frontSrc || "",
-      back: base.back || base.backImage || base.backSrc || "",
-    },
-    items: items.map((item, idx) => normalizeItem(item, idx)),
-  };
-}
-
-function normalizeItem(item, idx) {
-  const obj = item && typeof item === "object" ? item : {};
-
-  const category = String(obj.category || obj.type || obj.slot || "misc").toLowerCase();
-  const subcategory = obj.subcategory || obj.subType || obj.sub || "";
-
-  const front =
-    obj.frontImage ||
-    obj.front ||
-    obj.imageFront ||
-    (obj.images && (obj.images.front || obj.images.Front)) ||
-    "";
-
-  const back =
-    obj.backImage ||
-    obj.back ||
-    obj.imageBack ||
-    (obj.images && (obj.images.back || obj.images.Back)) ||
-    "";
-
-  const thumbnail = obj.thumbnail || obj.thumb || obj.preview || front || "";
-
-  return {
-    id: String(obj.id || obj.slug || `${category}_${idx}`),
-    name: String(obj.name || obj.title || obj.label || obj.id || "物件"),
-    category,
-    subcategory: subcategory ? String(subcategory).toLowerCase() : "",
-    slot: obj.slotKey || obj.slot || "",
-    images: { front, back },
-    thumbnail,
-    zIndex: Number.isFinite(obj.zIndex) ? obj.zIndex : Number.isFinite(obj.z) ? obj.z : null,
-  };
-}
-
-function getSlotKeyForSelection(category, accessorySub) {
-  if (category === "accessories") return accessorySub || "accessories";
-  return category;
-}
-
-function getSlotKeyFromItem(item) {
-  if (item.slot) return String(item.slot).toLowerCase();
-  if (item.category === "accessories") return item.subcategory || "accessories";
-  return item.category;
-}
-
-function guessZIndex(slotKey, idx) {
-  if (slotKey === "socks") return 10;
-  if (slotKey === "shoes") return 20;
-  if (slotKey === "bottom") return 30;
-  if (slotKey === "top") return 40;
-  if (slotKey === "accessories") return 60;
-  return 70 + idx;
-}
-
-function getItemImageForView(item, view) {
-  const specific = item.images && item.images[view];
-  if (specific) return specific;
-
-  const other = item.images && item.images[view === "front" ? "back" : "front"];
-  if (other) return other;
-
-  return "";
-}
-
-function titleCase(str) {
-  return String(str)
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function labelForCategory(categoryKey) {
-  return CATEGORY_LABELS[categoryKey] || titleCase(categoryKey);
-}
-
-function labelForSlot(slotKey) {
-  const found = state.slots.find((s) => s.key === slotKey);
-  return found ? found.label : titleCase(slotKey);
-}
-
-function setStatus(text) {
-  const el = document.getElementById("status");
-  if (!el) return;
-  el.textContent = text || "";
-}
-
-async function loadWardrobe() {
-  try {
-    const res = await fetch("/api/wardrobe", { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    setStatus("已載入衣櫃資料（/api/wardrobe）");
-    return normalizeWardrobe(json);
-  } catch (err) {
-    setStatus("無法讀取 /api/wardrobe，改用內建範例資料");
-    return normalizeWardrobe(DEFAULT_WARDROBE);
-  }
-}
-
-function computeSlots(wardrobe) {
-  const accessorySubs = new Set();
-
-  wardrobe.items.forEach((item) => {
-    if (item.category !== "accessories") return;
-    const key = item.subcategory || "accessories";
-    accessorySubs.add(key);
-  });
-
-  const accessorySlots = [];
-  const defaultKeys = new Set(ACCESSORY_DEFAULTS.map((d) => d.key));
-
-  ACCESSORY_DEFAULTS.forEach((d) => accessorySlots.push({ key: d.key, label: d.label, category: "accessories" }));
-  Array.from(accessorySubs)
-    .filter((key) => !defaultKeys.has(key))
-    .sort()
-    .forEach((key) => accessorySlots.push({ key, label: titleCase(key), category: "accessories" }));
-
-  const baseSlots = SLOT_BASE.map((s) => ({ ...s, category: s.key }));
-  return [...accessorySlots, ...baseSlots];
-}
-
-function initEquipped(slots) {
-  state.equipped = new Map();
-  slots.forEach((slot) => state.equipped.set(slot.key, null));
-}
-
-function setActiveCategory(category) {
-  state.activeCategory = category;
-
-  if (category !== "accessories") {
-    renderSubcategories();
-    renderItems();
-    renderCategoryNav();
-    return;
+    return {
+      baseModel: {
+        front: base.front || base.frontImage || base.frontSrc || "",
+      },
+      items: items.map((it, idx) => normalizeItem(it, idx)).filter(Boolean),
+    };
   }
 
-  if (!state.activeAccessorySub) {
-    const firstAcc = state.slots.find((s) => s.category === "accessories");
-    state.activeAccessorySub = firstAcc ? firstAcc.key : "headwear";
+  function initEquipped() {
+    state.equipped = new Map();
+    CATEGORIES.forEach((cat) => state.equipped.set(cat, null));
   }
 
-  renderSubcategories();
-  renderItems();
-  renderCategoryNav();
-}
-
-function setAccessorySubcategory(key) {
-  state.activeAccessorySub = key;
-  renderSubcategories();
-  renderItems();
-}
-
-function equipItem(slotKey, itemId) {
-  state.equipped.set(slotKey, itemId);
-  renderEquippedPanel();
-  renderModel();
-  renderItems();
-}
-
-function renderCategoryNav() {
-  const nav = document.getElementById("categoryNav");
-  nav.innerHTML = "";
-
-  const categories = CATEGORY_ORDER;
-
-  categories.forEach((cat) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "category-button" + (state.activeCategory === cat ? " is-active" : "");
-    btn.textContent = labelForCategory(cat);
-    btn.dataset.category = cat;
-    btn.addEventListener("click", () => setActiveCategory(cat));
-    nav.appendChild(btn);
-  });
-}
-
-function renderSubcategories() {
-  const subNav = document.getElementById("subcategoryNav");
-  subNav.innerHTML = "";
-
-  if (state.activeCategory !== "accessories") {
-    subNav.style.display = "none";
-    return;
+  function initPagination() {
+    state.pageByCategory = new Map();
+    CATEGORIES.forEach((cat) => state.pageByCategory.set(cat, 0));
   }
 
-  subNav.style.display = "flex";
+  function rebuildIndex() {
+    state.itemsById = new Map();
+    state.wardrobe.items.forEach((item) => {
+      state.itemsById.set(item.id, item);
+    });
+  }
 
-  const accessorySlots = state.slots.filter((s) => s.category === "accessories");
-  accessorySlots.forEach((slot) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "subcategory-button" + (state.activeAccessorySub === slot.key ? " is-active" : "");
-    btn.textContent = slot.label;
-    btn.dataset.subcategory = slot.key;
-    btn.addEventListener("click", () => setAccessorySubcategory(slot.key));
-    subNav.appendChild(btn);
-  });
-}
+  function applyBaseImage(src) {
+    const viewEl = document.querySelector('#modelStage .model-view[data-view="front"]');
+    if (!viewEl) return;
 
-function createThumb(item) {
-  const thumb = document.createElement("div");
-  thumb.className = "item-thumb";
+    const frameEl = viewEl.querySelector(".model-frame");
+    if (!frameEl) return;
 
-  const src = item.thumbnail;
-  if (src) {
+    const img = frameEl.querySelector(".model-base");
+    const placeholder = frameEl.querySelector('.model-placeholder[data-kind="base"]');
+
+    if (!img || !placeholder) return;
+
+    img.onerror = null;
+
+    if (!src) {
+      img.removeAttribute("src");
+      img.style.display = "none";
+      placeholder.style.display = "grid";
+      const text = placeholder.querySelector(".model-placeholder__text");
+      if (text) text.textContent = "尚未放入人物底圖（正面）";
+      state.lastBaseFrontSrc = "";
+      return;
+    }
+
+    if (state.lastBaseFrontSrc === src && img.getAttribute("src") && img.style.display !== "none") {
+      return;
+    }
+
+    img.style.display = "block";
+    placeholder.style.display = "none";
+
+    img.onerror = () => {
+      img.style.display = "none";
+      placeholder.style.display = "grid";
+      const text = placeholder.querySelector(".model-placeholder__text");
+      if (text) text.textContent = "人物底圖讀取失敗（正面）";
+    };
+
+    img.src = src;
+    state.lastBaseFrontSrc = src;
+  }
+
+  function getOverlayImgSelector(category) {
+    if (window.CSS && typeof window.CSS.escape === "function") {
+      return `img[data-category="${window.CSS.escape(category)}"]`;
+    }
+
+    return `img[data-category="${category}"]`;
+  }
+
+  function updateModelOverlays() {
+    const viewEl = document.querySelector('#modelStage .model-view[data-view="front"]');
+    if (!viewEl) return;
+
+    const overlays = viewEl.querySelector(".model-overlays");
+    if (!overlays) return;
+
+    CATEGORIES.forEach((cat) => {
+      const existing = overlays.querySelector(getOverlayImgSelector(cat));
+      const itemId = state.equipped.get(cat);
+
+      if (!itemId) {
+        if (existing) existing.remove();
+        return;
+      }
+
+      const item = state.itemsById.get(itemId);
+      const src = item && item.images && item.images.front;
+
+      if (!src) {
+        if (existing) existing.remove();
+        return;
+      }
+
+      const img = existing || document.createElement("img");
+      if (!existing) {
+        img.alt = "";
+        img.dataset.category = cat;
+        img.addEventListener("error", () => img.remove());
+        overlays.appendChild(img);
+      }
+
+      if (img.getAttribute("src") !== src) {
+        img.src = src;
+      }
+
+      img.style.zIndex = String(CATEGORY_Z_INDEX[cat] ?? 0);
+    });
+  }
+
+  function updateCategoryFiltersActiveState() {
+    state.categoryButtons.forEach((btn, cat) => {
+      const active = state.activeCategory === cat;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+  }
+
+  function setActiveCategory(category) {
+    state.activeCategory = category;
+    updateCategoryFiltersActiveState();
+    renderShelf();
+  }
+
+  function initCategoryFilters() {
+    const root = document.getElementById("categoryFilters");
+    if (!root) return;
+
+    root.innerHTML = "";
+    state.categoryButtons = new Map();
+
+    CATEGORIES.forEach((cat) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "subcategory-button category-filter-button";
+      btn.textContent = cat;
+      btn.dataset.category = cat;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", "false");
+
+      btn.addEventListener("click", () => setActiveCategory(cat));
+
+      root.appendChild(btn);
+      state.categoryButtons.set(cat, btn);
+    });
+  }
+
+  function createSlotThumb(src, fallbackText = "空") {
+    const thumb = document.createElement("div");
+    thumb.className = "slot-thumb";
+
+    if (!src) {
+      const fallback = document.createElement("div");
+      fallback.className = "slot-thumb__fallback";
+      fallback.textContent = fallbackText;
+      thumb.appendChild(fallback);
+      return thumb;
+    }
+
     const img = document.createElement("img");
     img.alt = "";
     img.src = src;
     img.loading = "lazy";
-
     img.addEventListener("error", () => {
       img.remove();
       const fallback = document.createElement("div");
-      fallback.className = "item-thumb__fallback";
-      fallback.textContent = "圖片不存在";
+      fallback.className = "slot-thumb__fallback";
+      fallback.textContent = fallbackText;
       thumb.appendChild(fallback);
     });
 
@@ -323,242 +305,292 @@ function createThumb(item) {
     return thumb;
   }
 
-  const fallback = document.createElement("div");
-  fallback.className = "item-thumb__fallback";
-  fallback.textContent = "沒有預覽";
-  thumb.appendChild(fallback);
-  return thumb;
-}
-
-function renderItems() {
-  const grid = document.getElementById("itemsGrid");
-  grid.innerHTML = "";
-
-  const slotKey = getSlotKeyForSelection(state.activeCategory, state.activeAccessorySub);
-  const equippedId = state.equipped.get(slotKey);
-
-  const noneCard = document.createElement("button");
-  noneCard.type = "button";
-  noneCard.className = "item-card" + (!equippedId ? " is-selected" : "");
-  noneCard.dataset.none = "true";
-  noneCard.innerHTML = `
-    <div class="item-thumb"><div class="item-thumb__fallback">無</div></div>
-    <div>
-      <div class="item-name">無</div>
-      <div class="item-meta">從 ${labelForSlot(slotKey)} 移除</div>
-    </div>
-  `;
-  noneCard.addEventListener("click", () => equipItem(slotKey, null));
-  grid.appendChild(noneCard);
-
-  const items = state.wardrobe.items
-    .filter((item) => {
-      if (state.activeCategory !== item.category) return false;
-      if (state.activeCategory !== "accessories") return true;
-      return (item.subcategory || "accessories") === slotKey;
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  if (!items.length) {
-    const empty = document.createElement("div");
-    empty.className = "item-card";
-    empty.style.cursor = "default";
-    empty.innerHTML = `
-      <div class="item-thumb"><div class="item-thumb__fallback">空</div></div>
-      <div>
-        <div class="item-name">這個分類目前沒有物件</div>
-        <div class="item-meta">把 PNG 放到 assets/wardrobe 後，重新整理頁面即可看到</div>
-      </div>
-    `;
-    grid.appendChild(empty);
-    return;
+  function safeLocaleCompare(a, b) {
+    try {
+      return a.localeCompare(b, "zh-Hant");
+    } catch {
+      return a.localeCompare(b);
+    }
   }
 
-  items.forEach((item) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "item-card" + (equippedId === item.id ? " is-selected" : "");
-    card.appendChild(createThumb(item));
+  function getCategoryItems(category) {
+    return state.wardrobe.items
+      .filter((item) => item.category === category)
+      .sort((a, b) => safeLocaleCompare(a.name, b.name));
+  }
 
-    const text = document.createElement("div");
-    const name = document.createElement("div");
-    name.className = "item-name";
-    name.textContent = item.name;
-    const meta = document.createElement("div");
-    meta.className = "item-meta";
-    meta.textContent = item.images.back ? "正面＋背面" : item.images.front ? "只有正面" : "沒有圖片";
-    text.appendChild(name);
-    text.appendChild(meta);
+  function clamp(value, min, max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
 
-    card.appendChild(text);
-    card.addEventListener("click", () => equipItem(slotKey, item.id));
-    grid.appendChild(card);
-  });
-}
+  function renderShelf() {
+    const root = document.getElementById("wardrobeItems");
+    if (!root) return;
 
-function renderEquippedPanel() {
-  const panel = document.getElementById("equippedPanel");
-  panel.innerHTML = "";
+    const category = state.activeCategory;
+    const items = getCategoryItems(category);
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
 
-  state.slots.forEach((slot) => {
-    const wrap = document.createElement("div");
-    wrap.className = "equipped-slot";
-
-    const top = document.createElement("div");
-    top.className = "equipped-slot__top";
-
-    const label = document.createElement("div");
-    label.className = "slot-label";
-    label.textContent = slot.label;
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "remove-button";
-    remove.textContent = "移除";
-
-    const equippedId = state.equipped.get(slot.key);
-    remove.disabled = !equippedId;
-    remove.addEventListener("click", () => equipItem(slot.key, null));
-
-    top.appendChild(label);
-    top.appendChild(remove);
-
-    const value = document.createElement("div");
-    value.className = "slot-value";
-
-    if (!equippedId) {
-      value.textContent = "無";
-    } else {
-      const item = state.itemsById.get(equippedId);
-      value.textContent = item ? item.name : equippedId;
+    const currentPage = clamp(state.pageByCategory.get(category) ?? 0, 0, totalPages - 1);
+    if (currentPage !== (state.pageByCategory.get(category) ?? 0)) {
+      state.pageByCategory.set(category, currentPage);
     }
 
-    wrap.appendChild(top);
-    wrap.appendChild(value);
-    panel.appendChild(wrap);
-  });
-}
+    const startIndex = currentPage * PAGE_SIZE;
+    const pageItems = items.slice(startIndex, startIndex + PAGE_SIZE);
 
-function applyBaseImage(frameEl, view, src) {
-  const img = frameEl.querySelector(".model-base");
-  const placeholder = frameEl.querySelector('.model-placeholder[data-kind="base"]');
+    const equippedId = state.equipped.get(category);
 
-  if (!src) {
-    img.removeAttribute("src");
-    img.style.display = "none";
-    placeholder.style.display = "grid";
-    placeholder.querySelector(".model-placeholder__text").textContent = `尚未放入人物底圖（${view === "front" ? "正面" : "背面"}）`;
-    return;
-  }
+    root.innerHTML = "";
 
-  img.style.display = "block";
-  img.src = src;
-  placeholder.style.display = "none";
+    const shelf = document.createElement("section");
+    shelf.className = "shelf";
 
-  img.addEventListener(
-    "error",
-    () => {
-      img.style.display = "none";
-      placeholder.style.display = "grid";
-      placeholder.querySelector(".model-placeholder__text").textContent = `人物底圖讀取失敗（${view === "front" ? "正面" : "背面"}）`;
-    },
-    { once: true }
-  );
-}
+    const header = document.createElement("div");
+    header.className = "shelf-header";
 
-function renderModel() {
-  const stage = document.getElementById("modelStage");
-  stage.dataset.mode = state.compare ? "compare" : "single";
-  stage.dataset.activeView = state.activeView;
+    const title = document.createElement("div");
+    title.className = "shelf-title";
 
-  const equippedItems = [];
-  let i = 0;
-  for (const [slotKey, itemId] of state.equipped.entries()) {
-    if (!itemId) continue;
-    const item = state.itemsById.get(itemId);
-    if (!item) continue;
-    const z = item.zIndex ?? guessZIndex(slotKey, i);
-    equippedItems.push({ slotKey, item, z, i });
-    i += 1;
-  }
+    const titleName = document.createElement("div");
+    titleName.className = "shelf-title__name";
+    titleName.textContent = category;
 
-  equippedItems.sort((a, b) => a.z - b.z || a.i - b.i);
+    const titleMeta = document.createElement("div");
+    titleMeta.className = "shelf-title__meta";
+    titleMeta.textContent = `第 ${currentPage + 1} / ${totalPages} 頁 · 共 ${items.length} 件`;
 
-  stage.querySelectorAll(".model-view").forEach((viewEl) => {
-    const view = viewEl.dataset.view;
-    const frame = viewEl.querySelector(".model-frame");
-    const overlays = viewEl.querySelector(".model-overlays");
+    title.appendChild(titleName);
+    title.appendChild(titleMeta);
 
-    overlays.innerHTML = "";
-    applyBaseImage(frame, view, state.wardrobe.baseModel[view]);
+    const controls = document.createElement("div");
+    controls.className = "shelf-controls";
 
-    equippedItems.forEach(({ slotKey, item, z }) => {
-      const src = getItemImageForView(item, view);
-      if (!src) return;
+    const prevBtn = document.createElement("button");
+    prevBtn.type = "button";
+    prevBtn.className = "icon-button";
+    prevBtn.textContent = "‹";
+    prevBtn.setAttribute("aria-label", "上一頁");
+    prevBtn.disabled = currentPage <= 0;
+    prevBtn.addEventListener("click", () => {
+      const page = state.pageByCategory.get(category) ?? 0;
+      state.pageByCategory.set(category, Math.max(0, page - 1));
+      renderShelf();
+    });
 
-      const img = document.createElement("img");
-      img.alt = "";
-      img.src = src;
-      img.style.zIndex = String(z);
-      img.dataset.slot = slotKey;
+    const nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.className = "icon-button";
+    nextBtn.textContent = "›";
+    nextBtn.setAttribute("aria-label", "下一頁");
+    nextBtn.disabled = currentPage >= totalPages - 1;
+    nextBtn.addEventListener("click", () => {
+      const page = state.pageByCategory.get(category) ?? 0;
+      state.pageByCategory.set(category, Math.min(totalPages - 1, page + 1));
+      renderShelf();
+    });
 
-      img.addEventListener("error", () => {
-        img.remove();
+    controls.appendChild(prevBtn);
+    controls.appendChild(nextBtn);
+
+    header.appendChild(title);
+    header.appendChild(controls);
+
+    const slots = document.createElement("div");
+    slots.className = "shelf-slots";
+
+    pageItems.forEach((item) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "slot-card" + (equippedId === item.id ? " is-selected" : "");
+      card.setAttribute("aria-pressed", equippedId === item.id ? "true" : "false");
+
+      card.appendChild(createSlotThumb(item.images.front));
+
+      const name = document.createElement("div");
+      name.className = "slot-name";
+      name.textContent = item.name;
+      card.appendChild(name);
+
+      card.addEventListener("click", () => {
+        toggleEquip(item.category, item.id);
       });
 
-      overlays.appendChild(img);
+      slots.appendChild(card);
     });
+
+    for (let i = pageItems.length; i < PAGE_SIZE; i += 1) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "slot-card";
+      card.disabled = true;
+
+      card.appendChild(createSlotThumb("", "空"));
+
+      const name = document.createElement("div");
+      name.className = "slot-name";
+      name.textContent = "空格";
+      card.appendChild(name);
+
+      slots.appendChild(card);
+    }
+
+    shelf.appendChild(header);
+    shelf.appendChild(slots);
+    root.appendChild(shelf);
+  }
+
+  function toggleEquip(category, itemId) {
+    const current = state.equipped.get(category);
+    state.equipped.set(category, current === itemId ? null : itemId);
+    renderEquippedChips();
+
+    if (state.activeCategory === category) {
+      renderShelf();
+    }
+
+    updateModelOverlays();
+  }
+
+  function renderEquippedChips() {
+    const root = document.getElementById("equippedChips");
+    if (!root) return;
+
+    root.innerHTML = "";
+
+    const equippedEntries = CATEGORIES.map((cat) => ({ cat, itemId: state.equipped.get(cat) })).filter(
+      ({ itemId }) => !!itemId,
+    );
+
+    if (!equippedEntries.length) {
+      const empty = document.createElement("div");
+      empty.className = "equipped-empty";
+      empty.textContent = "尚未穿戴";
+      root.appendChild(empty);
+      return;
+    }
+
+    equippedEntries.forEach(({ cat, itemId }) => {
+      const item = state.itemsById.get(itemId);
+
+      const chip = document.createElement("div");
+      chip.className = "equipped-chip";
+      chip.tabIndex = 0;
+      chip.setAttribute("role", "button");
+
+      const label = document.createElement("span");
+      label.className = "equipped-chip__label";
+      label.textContent = `${cat}:`;
+
+      const value = document.createElement("span");
+      value.className = "equipped-chip__value";
+      value.textContent = item ? item.name : itemId;
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "equipped-chip__remove";
+      remove.setAttribute("aria-label", `移除 ${cat}`);
+      remove.textContent = "×";
+
+      remove.addEventListener("click", (evt) => {
+        evt.stopPropagation();
+        state.equipped.set(cat, null);
+        renderEquippedChips();
+
+        if (state.activeCategory === cat) {
+          renderShelf();
+        }
+
+        updateModelOverlays();
+      });
+
+      const focusCategory = () => setActiveCategory(cat);
+
+      chip.addEventListener("click", focusCategory);
+      chip.addEventListener("keydown", (evt) => {
+        if (evt.key === "Enter" || evt.key === " ") {
+          evt.preventDefault();
+          focusCategory();
+        }
+      });
+
+      chip.appendChild(label);
+      chip.appendChild(value);
+      chip.appendChild(remove);
+      root.appendChild(chip);
+    });
+  }
+
+  function clearAll() {
+    CATEGORIES.forEach((cat) => state.equipped.set(cat, null));
+    renderEquippedChips();
+    renderShelf();
+    updateModelOverlays();
+  }
+
+  function randomWear() {
+    const requiredCategories = new Set(["上衣", "下身裝扮", "鞋子"]);
+
+    CATEGORIES.forEach((cat) => {
+      const candidates = getCategoryItems(cat).filter((item) => {
+        const src = item && item.images && item.images.front;
+        return typeof src === "string" && src.trim().length > 0;
+      });
+
+      if (!candidates.length) {
+        state.equipped.set(cat, null);
+        return;
+      }
+
+      if (requiredCategories.has(cat)) {
+        const pick = Math.floor(Math.random() * candidates.length);
+        state.equipped.set(cat, candidates[pick].id);
+        return;
+      }
+
+      // 0 = 不穿；1..n = 穿候選之一
+      const pick = Math.floor(Math.random() * (candidates.length + 1));
+      if (pick === 0) {
+        state.equipped.set(cat, null);
+        return;
+      }
+
+      state.equipped.set(cat, candidates[pick - 1].id);
+    });
+
+    renderEquippedChips();
+    renderShelf();
+    updateModelOverlays();
+  }
+
+  function initButtons() {
+    const clearAllBtn = document.getElementById("clearAllBtn");
+    if (clearAllBtn) clearAllBtn.addEventListener("click", clearAll);
+
+    const randomWearBtn = document.getElementById("randomWearBtn");
+    if (randomWearBtn) randomWearBtn.addEventListener("click", randomWear);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initEquipped();
+    initPagination();
+
+    state.wardrobe = normalizeWardrobe(WARDROBE_DATA);
+    setStatus("已載入衣櫃資料");
+
+    state.wardrobe.items = Array.isArray(state.wardrobe.items) ? state.wardrobe.items : [];
+    rebuildIndex();
+
+    initButtons();
+    initCategoryFilters();
+    updateCategoryFiltersActiveState();
+
+    applyBaseImage(state.wardrobe.baseModel.front);
+
+    renderEquippedChips();
+    renderShelf();
+    updateModelOverlays();
   });
-}
-
-function setActiveView(view) {
-  state.activeView = view;
-
-  document.querySelectorAll(".segmented-button").forEach((btn) => {
-    const isActive = btn.dataset.view === view;
-    btn.classList.toggle("is-active", isActive);
-    btn.setAttribute("aria-selected", isActive ? "true" : "false");
-  });
-
-  renderModel();
-}
-
-function initViewControls() {
-  document.querySelectorAll(".segmented-button").forEach((btn) => {
-    btn.addEventListener("click", () => setActiveView(btn.dataset.view));
-  });
-
-  const compareToggle = document.getElementById("compareToggle");
-  compareToggle.addEventListener("change", () => {
-    state.compare = compareToggle.checked;
-    renderModel();
-  });
-}
-
-function buildIndex(wardrobe) {
-  state.itemsById = new Map();
-  wardrobe.items.forEach((item) => state.itemsById.set(item.id, item));
-}
-
-function mount() {
-  initViewControls();
-
-  // setActiveCategory() 內會觸發：renderSubcategories + renderItems + renderCategoryNav
-  setActiveCategory(state.activeCategory);
-
-  renderEquippedPanel();
-  renderModel();
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  state.wardrobe = await loadWardrobe();
-  buildIndex(state.wardrobe);
-
-  state.slots = computeSlots(state.wardrobe);
-  initEquipped(state.slots);
-
-  const firstAcc = state.slots.find((s) => s.category === "accessories");
-  state.activeAccessorySub = firstAcc ? firstAcc.key : "headwear";
-
-  mount();
-});
+})();
