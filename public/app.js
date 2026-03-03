@@ -524,10 +524,22 @@
   }
 
   function randomWear() {
+    const requiredCategories = new Set(["上衣", "下身裝扮", "鞋子"]);
+
     CATEGORIES.forEach((cat) => {
-      const candidates = getCategoryItems(cat);
+      const candidates = getCategoryItems(cat).filter((item) => {
+        const src = item && item.images && item.images.front;
+        return typeof src === "string" && src.trim().length > 0;
+      });
+
       if (!candidates.length) {
         state.equipped.set(cat, null);
+        return;
+      }
+
+      if (requiredCategories.has(cat)) {
+        const pick = Math.floor(Math.random() * candidates.length);
+        state.equipped.set(cat, candidates[pick].id);
         return;
       }
 
