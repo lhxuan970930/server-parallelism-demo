@@ -96,10 +96,15 @@ async function parseItemDir({ absItemDir, category, subcategory }) {
     .filter((n) => n.toLowerCase() !== 'thumb.png' && n.toLowerCase() !== 'thumbnail.png' && n.toLowerCase() !== 'preview.png')
     .sort((a, b) => a.localeCompare(b));
 
-  const fallbackFront = nonThumbFiles.length ? nonThumbFiles[0] : null;
+  // 若使用者沒特別命名 front.png/back.png：
+  // - 優先用 front.png
+  // - 否則挑第一個「不是 back.png」的檔案當作 front
+  //   （避免只有 back.png 時，把背面誤當正面）
+  const fallbackFront = nonThumbFiles.find((n) => n.toLowerCase() !== 'back.png') || null;
 
   const resolvedFront = frontName || fallbackFront;
-  const resolvedBack = backName || resolvedFront;
+  // 背面只有在提供 back.png 時才回傳（符合：沒圖片就不要出現）
+  const resolvedBack = backName || null;
 
   const meta = await readMetaJson(absItemDir);
 
@@ -108,10 +113,10 @@ async function parseItemDir({ absItemDir, category, subcategory }) {
     : '';
   const backUrl = resolvedBack
     ? toAssetUrl(path.relative(ASSETS_DIR, path.join(absItemDir, resolvedBack)))
-    : frontUrl;
+    : '';
   const thumbUrl = thumbName
     ? toAssetUrl(path.relative(ASSETS_DIR, path.join(absItemDir, thumbName)))
-    : frontUrl;
+    : frontUrl || backUrl;
 
   const name = (meta && meta.name) || humanize(itemKey);
 
@@ -136,7 +141,7 @@ function parseItemFile({ absFile, category, subcategory }) {
     name,
     category,
     subcategory: subcategory || '',
-    images: { front: url, back: url },
+    images: { front: url, back: '' },
     thumbnail: url,
   };
 }
@@ -180,7 +185,8 @@ async function buildWardrobe() {
   const baseBackAbs = path.join(ASSETS_DIR, 'model', 'back.png');
 
   const baseFront = (await fileExists(baseFrontAbs)) ? toAssetUrl('model/front.png') : '';
-  const baseBack = (await fileExists(baseBackAbs)) ? toAssetUrl('model/back.png') : baseFront;
+  // 若背面底圖不存在，保持空字串，前端會顯示「尚未放入人物底圖（背面）」
+  const baseBack = (await fileExists(baseBackAbs)) ? toAssetUrl('model/back.png') : '';
 
   // wardrobe items
   const absWardrobeDir = path.join(ASSETS_DIR, 'wardrobe');
@@ -220,6 +226,10 @@ app.get(/^\/(?!api(?:\/|$)|assets(?:\/|$)).*/, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+module.exports = { app, buildWardrobe };
